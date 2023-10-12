@@ -66,6 +66,9 @@ class CodeAutoComplete<T> {
 
   /// create and show the tip panel.
   void show(BuildContext codeFieldContext, CodeField wdg, FocusNode focusNode) {
+    if (isShowing) {
+      hide();
+    }
     widget = wdg;
     OverlayEntry overlayEntry = OverlayEntry(builder: (context) {
       return StreamBuilder(
@@ -101,6 +104,7 @@ class CodeAutoComplete<T> {
     return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: options
             .map((tip) => itemBuilder(
                 context, tip, current == options.indexOf(tip), write))
@@ -181,15 +185,11 @@ class CodeAutoComplete<T> {
         top: offset.dy,
         left: offset.dx,
         child: Material(
-          elevation: 8,
           child: StatefulBuilder(builder: (context, setState) {
             panelSetState = setState;
             return background(ConstrainedBox(
               constraints: constraints,
-              child: ConstrainedBox(
-                constraints: constraints,
-                child: buildPanel(context),
-              ),
+              child:  buildPanel(context),
             ));
           }),
         ));
