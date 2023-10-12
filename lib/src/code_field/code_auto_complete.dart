@@ -39,7 +39,7 @@ class CodeAutoComplete<T> {
 
   /// the panel offset.
   Offset? offset;
-  final StreamController streamController = StreamController.broadcast();
+  static final StreamController streamController = StreamController.broadcast();
   Stream get stream => streamController.stream;
 
   CodeAutoComplete({
@@ -62,13 +62,14 @@ class CodeAutoComplete<T> {
   /// hide the tip panel.
   void hide() {
     streamController.add(null);
+    // panelOverlay?.remove();
   }
 
   /// create and show the tip panel.
   void show(BuildContext codeFieldContext, CodeField wdg, FocusNode focusNode) {
-    if (isShowing) {
-      hide();
-    }
+  // if (panelOverlay?.mounted == true) {
+  //     return;
+  //   }
     widget = wdg;
     OverlayEntry overlayEntry = OverlayEntry(builder: (context) {
       return StreamBuilder(
@@ -96,7 +97,8 @@ class CodeAutoComplete<T> {
     });
 
     panelOverlay = overlayEntry;
-    Overlay.of(codeFieldContext).insert(overlayEntry);
+    
+    Overlay.of(codeFieldContext).insert(panelOverlay!);
   }
 
   /// the core widget of tip panel.

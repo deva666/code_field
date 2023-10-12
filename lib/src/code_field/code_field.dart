@@ -337,8 +337,10 @@ class _CodeFieldState extends State<CodeField> {
       enabled: widget.enabled,
       onChanged: (text) {
         widget.onChanged?.call(text);
-        widget.autoComplete?.show(context, widget, _focusNode!);
-        widget.autoComplete?.streamController.add(text);
+        // if (widget.autoComplete?.isShowing == false) {
+        //   widget.autoComplete?.show(context, widget, _focusNode!);
+        // }
+        CodeAutoComplete.streamController.add(text);
       },
       readOnly: widget.readOnly,
     );
