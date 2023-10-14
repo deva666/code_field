@@ -59,6 +59,8 @@ class CodeField extends StatefulWidget {
   /// {@macro flutter.widgets.textField.selectionControls}
   final TextSelectionControls? selectionControls;
 
+
+
   final Color? background;
   final EdgeInsets padding;
   final Decoration? decoration;
@@ -117,6 +119,7 @@ class _CodeFieldState extends State<CodeField> {
   FocusNode? _focusNode;
   String? lines;
   String longestLine = '';
+    final GlobalKey codeKey = GlobalKey();
 
   @override
   void initState() {
@@ -138,7 +141,7 @@ class _CodeFieldState extends State<CodeField> {
   }
 
   void createAutoComplate() {
-    widget.autoComplete?.show(context, widget, _focusNode!);
+    widget.autoComplete?.show(context,codeKey,  widget, _focusNode!, _codeScroll!);
     widget.controller.autoComplete = widget.autoComplete;
     _codeScroll?.addListener(hideAutoComplete);
   }
@@ -337,8 +340,8 @@ class _CodeFieldState extends State<CodeField> {
       enabled: widget.enabled,
       onChanged: (text) {
         widget.onChanged?.call(text);
-        // if (widget.autoComplete?.isShowing == false) {
-        //   widget.autoComplete?.show(context, widget, _focusNode!);
+        // if (widget.autoComplete?.panelOverlay == null) {
+        //   widget.autoComplete?.show(context, widget, _focusNode!, _codeScroll!);
         // }
         CodeAutoComplete.streamController.add(text);
       },
@@ -367,7 +370,7 @@ class _CodeFieldState extends State<CodeField> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (widget.lineNumbers && numberCol != null) numberCol,
-          Expanded(child: codeCol),
+          Expanded(key: codeKey, child: codeCol),
         ],
       ),
     );

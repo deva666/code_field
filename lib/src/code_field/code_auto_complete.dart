@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:highlight/highlight.dart';
 import '../../code_text_field.dart';
+import 'sizes.dart';
 
 /// config auto complete
 class CodeAutoComplete<T> {
@@ -42,6 +43,8 @@ class CodeAutoComplete<T> {
   static final StreamController streamController = StreamController.broadcast();
   Stream get stream => streamController.stream;
 
+  late GlobalKey codeKey;
+
   CodeAutoComplete({
     required this.optionsBuilder,
     required this.itemBuilder,
@@ -66,12 +69,13 @@ class CodeAutoComplete<T> {
   }
 
   /// create and show the tip panel.
-  void show(BuildContext codeFieldContext, CodeField wdg, FocusNode focusNode) {
-  // if (panelOverlay?.mounted == true) {
-  //     return;
-  //   }
+  void show(BuildContext codeFieldContext, GlobalKey codeKey, CodeField wdg, FocusNode focusNode, ScrollController scrollController) {
+this.codeKey = codeKey;
+    if (panelOverlay?.mounted == true) {
+      panelOverlay?.remove();
+    }
     widget = wdg;
-    OverlayEntry overlayEntry = OverlayEntry(builder: (context) {
+    OverlayEntry overlayEntry = OverlayEntry(maintainState: true, builder: (context) {
       return StreamBuilder(
         stream: stream,
         builder: (context, snapshot) {
@@ -88,7 +92,7 @@ class CodeAutoComplete<T> {
               snapshot.data != null &&
               '${snapshot.data}'.isNotEmpty) {
             isShowing = true;
-            return panelWrap(codeFieldContext, wdg, focusNode);
+            return panelWrap(codeFieldContext, wdg, focusNode, scrollController);
           } else {
             return const Offstage();
           }
@@ -153,8 +157,9 @@ class CodeAutoComplete<T> {
 
   /// get the panel offset through the cursor offset.
   Offset cursorOffset(
-      BuildContext context, CodeField widget, FocusNode focusNode) {
+      BuildContext context, CodeField widget, FocusNode focusNode, ScrollController scrollController) {
     var s = widget.controller.text;
+   
     TextStyle textStyle = widget.textStyle ?? const TextStyle();
     textStyle = textStyle.copyWith(
       fontSize: textStyle.fontSize ?? 16.0,
@@ -175,14 +180,116 @@ class CodeAutoComplete<T> {
       ),
     )..layout();
 
-    return Offset(focusNode.offset.dx + hpainter.width,
-            focusNode.offset.dy + painter.height) +
-        (offset ?? Offset.zero);
+return _updatePopupOffset(textStyle, scrollController, focusNode);
+
+
+  //   var y = max(
+  //     _getCaretOffset(painter).dy +
+  //         _getCaretHeight(painter) +
+  //         16 +
+  //         widget.padding.top -
+  //         scrollController.offset + 
+  //         (editorOffset?.dy ?? 0),
+  //     0,
+  //   );
+  //   final flippedTopOffset = y -
+  //       (350 + _getCaretHeight(painter) + 10);
+  //   print(editorOffset);
+  //   print(y);
+  //   final viewInsets = EdgeInsets.fromWindowPadding(WidgetsBinding.instance.window.viewInsets,WidgetsBinding.instance.window.devicePixelRatio);
+
+  //   print('heith ${MediaQuery.of(context).size.height}');
+  //   print('bottom inset ${viewInsets.bottom}' );
+
+
+  // //  y = min(y, Me  diaQuery.of(context).size.height - viewInsets.bottom - focusNode.offset.dy); 
+  //   print('Carret offset ${_getCaretOffset(painter)}');
+  //   print('Carret offset hpainter ${_getCaretOffset(hpainter)}');
+  //   print('Scroll Controller offset ${scrollController.offset}');
+  //   print('Scroll Controller  extent total ${scrollController.position.viewportDimension}');
+  //   print('Scroll Controller  max scroll ${scrollController.position.maxScrollExtent}');
+  //   print('Focus Node ${focusNode.offset.dy}');   
+  //   print('Painter Height ${painter.height}');   
+  //   return Offset(focusNode.offset.dx + hpainter.width,
+  //             editorOffset!.dy - painter.height + focusNode.offset.dy) + 
+  //       (offset ?? Offset.zero);
+  }
+
+  Offset _editorOffset(GlobalKey codeKey, ScrollController scrollController) {
+    Offset editorOffset;
+      if (codeKey.currentContext != null) {
+      final box = codeKey.currentContext!.findRenderObject() as RenderBox?;
+      editorOffset = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+      print('raw editor offset $editorOffset');
+      if (editorOffset != null) {
+        var fixedOffset = editorOffset!;
+        fixedOffset += Offset(0, scrollController.offset);
+        editorOffset = fixedOffset;
+      }
+    } else {
+      editorOffset = Offset.zero;
+    }
+    return editorOffset;
+  }
+
+
+  Offset _updatePopupOffset(TextStyle textStyle, ScrollController codeController, FocusNode focusNode) {
+    final textPainter = _getTextPainter(widget.controller.text, textStyle);
+    final caretHeight = _getCaretHeight(textPainter);
+
+    final leftOffset = _getPopupLeftOffset(textPainter, focusNode);
+    final normalTopOffset = _getPopupTopOffset(textPainter, caretHeight, codeController, _editorOffset(codeKey, codeController));
+    final flippedTopOffset = normalTopOffset -
+        (Sizes.autocompletePopupMaxHeight + caretHeight + Sizes.caretPadding);
+
+    
+    final  normalPopupOffset = Offset(leftOffset, normalTopOffset);
+      final flippedPopupOffset = Offset(leftOffset, flippedTopOffset);
+    return normalPopupOffset;
+  }
+
+  TextPainter _getTextPainter(String text, TextStyle textStyle) {
+    return TextPainter(
+      textDirection: TextDirection.ltr,
+      text: TextSpan(text: text, style: textStyle),
+    )..layout();
+  }
+
+  Offset _getCaretOffset(TextPainter textPainter) {
+    return textPainter.getOffsetForCaret(
+      widget.controller.selection.base,
+      Rect.zero,
+    );
+  }
+
+  double _getCaretHeight(TextPainter textPainter) {
+    final double? caretFullHeight = textPainter.getFullHeightForCaret(
+      widget.controller.selection.base,
+      Rect.zero,
+    );
+    return (widget.controller.selection.base.offset > 0) ? caretFullHeight! : 0;
+  }
+
+  double _getPopupLeftOffset(TextPainter hpainter, FocusNode focusNode) {
+    return focusNode.offset.dx + hpainter.width;
+  }
+
+  double _getPopupTopOffset(TextPainter textPainter, double caretHeight, ScrollController codeScroll,  Offset editorOffset) {
+    return max(
+      _getCaretOffset(textPainter).dy +
+          caretHeight +
+          16 +
+          widget.padding.top -
+          codeScroll!.offset +
+          (editorOffset?.dy ?? 0),
+      0,
+    );
   }
 
   /// the style widget of tip panel.
-  Widget panelWrap(BuildContext context, CodeField wdg, FocusNode focusNode) {
-    Offset offset = cursorOffset(context, widget, focusNode);
+  Widget panelWrap(BuildContext context, CodeField wdg, FocusNode focusNode, ScrollController scrollController) {
+    Offset offset = cursorOffset(context, widget, focusNode, scrollController);
+    print('offset x:${offset.dx} y:${offset.dy}');
     return Positioned(
         top: offset.dy,
         left: offset.dx,
@@ -205,3 +312,4 @@ class CodeAutoComplete<T> {
     return content;
   }
 }
+
