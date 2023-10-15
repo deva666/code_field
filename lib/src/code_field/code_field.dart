@@ -60,7 +60,6 @@ class CodeField extends StatefulWidget {
   final TextSelectionControls? selectionControls;
 
 
-
   final Color? background;
   final EdgeInsets padding;
   final Decoration? decoration;
@@ -109,6 +108,7 @@ class CodeField extends StatefulWidget {
 }
 
 class _CodeFieldState extends State<CodeField> {
+  final _editorKey = GlobalKey();
   // Add a controller
   LinkedScrollControllerGroup? _controllers;
   ScrollController? _numberScroll;
@@ -119,7 +119,6 @@ class _CodeFieldState extends State<CodeField> {
   FocusNode? _focusNode;
   String? lines;
   String longestLine = '';
-    final GlobalKey codeKey = GlobalKey();
 
   @override
   void initState() {
@@ -141,8 +140,8 @@ class _CodeFieldState extends State<CodeField> {
   }
 
   void createAutoComplate() {
-    widget.autoComplete?.show(context,codeKey,  widget, _focusNode!, _codeScroll!);
     widget.controller.autoComplete = widget.autoComplete;
+    widget.autoComplete?.show(context,widget, _focusNode!, _codeScroll!, _editorKey);
     _codeScroll?.addListener(hideAutoComplete);
   }
 
@@ -341,9 +340,9 @@ class _CodeFieldState extends State<CodeField> {
       onChanged: (text) {
         widget.onChanged?.call(text);
         // if (widget.autoComplete?.panelOverlay == null) {
-        //   widget.autoComplete?.show(context, widget, _focusNode!, _codeScroll!);
+        //   widget.autoComplete?.show(context, widget, _focusNode!);
         // }
-        CodeAutoComplete.streamController.add(text);
+        widget.autoComplete?.streamController.add(text);
       },
       readOnly: widget.readOnly,
     );
@@ -370,7 +369,7 @@ class _CodeFieldState extends State<CodeField> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (widget.lineNumbers && numberCol != null) numberCol,
-          Expanded(key: codeKey, child: codeCol),
+          Expanded(key:_editorKey, child: codeCol),
         ],
       ),
     );

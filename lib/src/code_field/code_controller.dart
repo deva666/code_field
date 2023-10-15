@@ -14,7 +14,7 @@ import 'editor_params.dart';
 class CodeController extends TextEditingController {
   Mode? _language;
   CodeAutoComplete? autoComplete;
-
+  
   /// A highlight language to parse the text with
   Mode? get language => _language;
 
@@ -55,10 +55,8 @@ class CodeController extends TextEditingController {
   String get languageId => _languageId;
 
   CodeController({
-    String? text,
+    super.text,
     Mode? language,
-    // @Deprecated('Use CodeTheme widget to provide theme to CodeField.')
-    //     Map<String, TextStyle>? theme,
     this.patternMap,
     this.stringMap,
     this.params = const EditorParams(),
@@ -67,7 +65,7 @@ class CodeController extends TextEditingController {
       CloseBlockModifier(),
       TabModifier(),
     ],
-  }) : super(text: text) {
+  }) {
     this.language = language;
 
     // Create modifier map
