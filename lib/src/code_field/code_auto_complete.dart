@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:highlight/highlight.dart';
 import '../../code_text_field.dart';
 
-typedef OffsetFunc = Offset Function();
+typedef OffsetGetter = Offset? Function();
 
 class CodeAutoComplete<T> {
   /// can input your options which created through editor text and language.
@@ -39,7 +38,8 @@ class CodeAutoComplete<T> {
   List<T> options = [];
 
   /// the panel offset.
-  OffsetFunc? offsetFunc;
+  OffsetGetter? initialOffset;
+  Function(Offset) onOffsetUpdated;
   StreamController streamController;
   Stream get stream => streamController.stream;
 
@@ -47,7 +47,8 @@ class CodeAutoComplete<T> {
     required this.optionsBuilder,
     required this.itemBuilder,
     required this.streamController,
-    this.offsetFunc,
+    required this.onOffsetUpdated,
+    this.initialOffset,
     this.constraints = const BoxConstraints(maxHeight: 300, maxWidth: 240),
     this.backgroundColor,
     this.optionValue,
@@ -68,31 +69,33 @@ class CodeAutoComplete<T> {
   }
 
   /// create and show the tip panel.
-  void show(BuildContext codeFieldContext, CodeField wdg, FocusNode focusNode, ScrollController codeScroll, GlobalKey editorKey) {
+  void show(BuildContext codeFieldContext, CodeField wdg, FocusNode focusNode) {
     widget = wdg;
-    OverlayEntry overlayEntry = OverlayEntry(
-        maintainState: true,
-        builder: (context) {
-          return StreamBuilder(
-            stream: stream,
-            builder: (context, snapshot) {
-              isShowing = false;
-              current = 0;
-              options = optionsBuilder(
-                widget.controller.text,
-                widget.controller.selection.baseOffset,
-                widget.controller.language,
-              );
-              if (!focusNode.hasFocus || options.isEmpty) return const Offstage();
-              if (snapshot.hasData && snapshot.data != true && snapshot.data != null && '${snapshot.data}'.isNotEmpty) {
-                isShowing = true;
-                return panelWrap(codeFieldContext, wdg, focusNode, codeScroll, editorKey);
-              } else {
-                return const Offstage();
-              }
-            },
+    OverlayEntry overlayEntry = OverlayEntry(builder: (context) {
+      return StreamBuilder(
+        stream: stream,
+        builder: (context, snapshot) {
+          isShowing = false;
+          current = 0;
+          options = optionsBuilder(
+            widget.controller.text,
+            widget.controller.selection.baseOffset,
+            widget.controller.language,
           );
-        });
+          if (!focusNode.hasFocus || options.isEmpty) return const Offstage();
+          if (snapshot.hasData && snapshot.data != true && snapshot.data != null && '${snapshot.data}'.isNotEmpty) {
+            isShowing = true;
+            return DraggableWidget(
+              onOffsetUpdate: onOffsetUpdated,
+              initialOffset: _getInitialOffset(context, widget, focusNode),
+              child: panelWrap(codeFieldContext, wdg, focusNode),
+            );
+          } else {
+            return const Offstage();
+          }
+        },
+      );
+    });
 
     panelOverlay = overlayEntry;
 
@@ -145,29 +148,47 @@ class CodeAutoComplete<T> {
 
   Offset _editorOffset(ScrollController codeScroll, GlobalKey editorKey) {
     final box = editorKey.currentContext!.findRenderObject() as RenderBox?;
-      var editorOffset = box?.localToGlobal(Offset.zero);
-      if (editorOffset != null) {
-        var fixedOffset =editorOffset;
-        fixedOffset += Offset(0, codeScroll.offset);
-        return fixedOffset;
-      }
-      return Offset.zero;
+    var editorOffset = box?.localToGlobal(Offset.zero);
+    if (editorOffset != null) {
+      var fixedOffset = editorOffset;
+      fixedOffset += Offset(0, codeScroll.offset);
+      return fixedOffset;
+    }
+    return Offset.zero;
+  }
+
+  Offset _getInitialOffset(BuildContext context, CodeField widget, FocusNode focusNode) {
+    // return Offset(
+    //     200, EdgeInsets.fromViewPadding(View.of(context).viewInsets, View.of(context).devicePixelRatio).bottom + 64);
+    final inital = initialOffset?.call();
+    if (inital != null) {
+      return inital;
+    }
+    final offset = cursorOffset(context, widget, focusNode);
+    final pinToBottom = _pinToBottom(offset, context);
+    if (pinToBottom) {
+      return Offset(offset.dx,
+          EdgeInsets.fromViewPadding(View.of(context).viewInsets, View.of(context).devicePixelRatio).bottom + 64);
+    } else {
+      return offset;
+    }
   }
 
   /// get the panel offset through the cursor offset.
-  Offset cursorOffset(BuildContext context, CodeField widget, FocusNode focusNode, ScrollController codeScroll, GlobalKey editorKey) {
-    var s = widget.controller.text;
+  Offset cursorOffset(BuildContext context, CodeField widget, FocusNode focusNode) {
+    var text = widget.controller.text;
+    var s =
+        widget.controller.selection.baseOffset < 0 ? text : text.substring(0, widget.controller.selection.baseOffset);
+
     TextStyle textStyle = widget.textStyle ?? const TextStyle();
     textStyle = textStyle.copyWith(
       fontSize: textStyle.fontSize ?? 16.0,
     );
     TextPainter painter = TextPainter(
       textDirection: TextDirection.ltr,
-      text: TextSpan(
-        style: textStyle,
-        text: s.substring(0, widget.controller.selection.baseOffset),
-      ),
+      text: TextSpan(style: textStyle, text: text),
     )..layout();
+    // return painter.getOffsetForCaret(widget.controller.selection.base, Rect.zero);
     var cursorBefore = s.substring(0, widget.controller.selection.baseOffset);
     TextPainter hpainter = TextPainter(
       textDirection: TextDirection.ltr,
@@ -177,81 +198,99 @@ class CodeAutoComplete<T> {
       ),
     )..layout();
 
-    final editorOffset = _editorOffset(codeScroll, editorKey);
-    final caretOffset = _getCaretOffset(painter);
-    print('editor offset ${editorOffset.dy}');
-    print('painter height ${painter.height}');
-    print('caret offset ${caretOffset.dy}');
-    print('code scroll offset ${codeScroll.offset}');
-    final f = max(codeScroll.offset, painter.height);
-    final se = min(codeScroll.offset, painter.height);
-    // final y =painter.height - caretOffset.dy + focusNode.offset.dy;
-    final y =   f -se + focusNode.offset.dy;
-    print('total offset ${y}');
-    // bool flipVertical = _isVerticalFlipRequired(context, editorKey, editorOffset, Offset(0,y));
-// print('flip vertical ${flipVertical}');
-    print('-------------------------');
-    return Offset(hpainter.width + focusNode.offset.dx, 0 );
-  }
-
-  Offset _getCaretOffset(TextPainter textPainter) {
-    return textPainter.getOffsetForCaret(
-      widget.controller.selection.base,
-      Rect.zero,
-    );
-  }
-
-  bool _isVerticalFlipRequired(BuildContext context, GlobalKey codeKey, Offset editorOffset, Offset normalOffset) {
-    final viewInsets = EdgeInsets.fromViewPadding(View.of(context).viewInsets, View.of(context).devicePixelRatio);
-    final windowHeight = MediaQuery.of(context).size.height - viewInsets.bottom - viewInsets.top;
-    print('window height ${windowHeight}');
-    print('max pop up height ${constraints.maxHeight}');
-    // final isPopupShorterThanWindow =
-    //     constraints.maxHeight < windowHeight;
-    final isPopupOverflowingHeight = normalOffset.dy +
-            constraints.maxHeight -
-            (editorOffset.dy ?? 0) >
-       windowHeight;
-
-    return isPopupOverflowingHeight ;
+    return Offset(hpainter.width + focusNode.offset.dx + 16, painter.height + focusNode.offset.dy);
   }
 
   /// the style widget of tip panel.
-  Widget panelWrap(BuildContext context, CodeField wdg, FocusNode focusNode, ScrollController codeScroll, GlobalKey editorKey) {
-    final offset = cursorOffset(context, widget, focusNode, codeScroll, editorKey);
-    final viewInsets = EdgeInsets.fromViewPadding(View.of(context).viewInsets, View.of(context).devicePixelRatio);
-    // final windowHeight = MediaQuery.of(context).size.height - viewInsets.bottom - viewInsets.top;
-    // final pinToBottom = _pinToBottom(offset, context);
-    final addedOffset = offsetFunc?.call() ?? Offset.zero;
-    return Positioned(
-      bottom: viewInsets.bottom + addedOffset.dy,
-      // top:  offset.dy > viewInsets.bottom ? min(viewInsets.bottom, offset.dy - 300) : offset.dy,
-      // top: !pinToBottom ? offset.dy : null,
-      left: offset.dx + addedOffset.dx,
-      child:   Material(
-          child: StatefulBuilder(builder: (context, setState) {
-            panelSetState = setState;
-            return background(
-              context,
-              ConstrainedBox(
-                constraints: constraints,
-                child: buildPanel(context),
-              ),
-            );
-          }),
+  Widget panelWrap(BuildContext context, CodeField wdg, FocusNode focusNode) {
+    return Material(
+      type: MaterialType.transparency,
+      child: background(
+        context,
+        ConstrainedBox(
+          constraints: constraints,
+          child: buildPanel(context),
         ),
+      ),
     );
   }
 
   bool _pinToBottom(Offset offset, BuildContext context) {
     final viewInsets = EdgeInsets.fromViewPadding(View.of(context).viewInsets, View.of(context).devicePixelRatio);
     final screenSize = MediaQuery.of(context).size;
-    final limit = screenSize.height - viewInsets.bottom - (offsetFunc?.call() ?? Offset.zero).dy;
+    final limit = screenSize.height - viewInsets.bottom;
     return offset.dy > limit;
   }
 
   /// the style widget of tip panel.
   Widget background(BuildContext context, Widget content) {
-    return ColoredBox(color: Theme.of(context).colorScheme.secondaryContainer, child: content);
+    return DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
+            color: Theme.of(context).colorScheme.secondaryContainer, borderRadius: BorderRadius.circular(8)),
+        child:  Padding(
+          padding: const EdgeInsets.all(2),
+          child: content,
+        ));
+  }
+}
+
+class DraggableWidget extends StatefulWidget {
+  final Widget child;
+  final Offset initialOffset;
+  final Function(Offset) onOffsetUpdate;
+
+  const DraggableWidget({
+    required this.child,
+    required this.initialOffset, required this.onOffsetUpdate,
+  });
+
+  @override
+  State<StatefulWidget> createState() => _DraggableWidgetState();
+}
+
+class _DraggableWidgetState extends State<DraggableWidget> {
+  bool _isDragging = false;
+  late Offset _offset;
+
+  @override
+  void initState() {
+    super.initState();
+    _offset = widget.initialOffset;
+  }
+
+  void _updatePosition(PointerMoveEvent pointerMoveEvent) {
+    double newOffsetX = _offset.dx + pointerMoveEvent.delta.dx;
+    double newOffsetY = _offset.dy + pointerMoveEvent.delta.dy;
+
+    setState(() {
+      _offset = Offset(newOffsetX, newOffsetY);
+      widget.onOffsetUpdate(_offset);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: _offset.dx,
+      top: _offset.dy,
+      child: Listener(
+        onPointerMove: (PointerMoveEvent pointerMoveEvent) {
+          _updatePosition(pointerMoveEvent);
+
+          setState(() {
+            _isDragging = true;
+          });
+        },
+        onPointerUp: (PointerUpEvent pointerUpEvent) {
+          if (_isDragging) {
+            setState(() {
+              _isDragging = false;
+            });
+          } else {}
+        },
+        child: widget.child,
+      ),
+    );
   }
 }

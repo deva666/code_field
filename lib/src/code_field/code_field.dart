@@ -108,7 +108,6 @@ class CodeField extends StatefulWidget {
 }
 
 class _CodeFieldState extends State<CodeField> {
-  final _editorKey = GlobalKey();
   // Add a controller
   LinkedScrollControllerGroup? _controllers;
   ScrollController? _numberScroll;
@@ -141,7 +140,7 @@ class _CodeFieldState extends State<CodeField> {
 
   void createAutoComplate() {
     widget.controller.autoComplete = widget.autoComplete;
-    widget.autoComplete?.show(context,widget, _focusNode!, _codeScroll!, _editorKey);
+    widget.autoComplete?.show(context,widget, _focusNode!);
     _codeScroll?.addListener(hideAutoComplete);
   }
 
@@ -311,7 +310,7 @@ class _CodeFieldState extends State<CodeField> {
       smartQuotesType: widget.smartQuotesType,
       focusNode: _focusNode,
       onTap: () {
-        widget.autoComplete?.hide();
+        // widget.autoComplete?.hide();
         widget.onTap?.call();
       },
       scrollPadding: widget.padding,
@@ -331,7 +330,7 @@ class _CodeFieldState extends State<CodeField> {
         hintStyle: widget.hintStyle,
       ),
       onTapOutside: (e) {
-        Future.delayed(const Duration(milliseconds: 300), hideAutoComplete);
+        // Future.delayed(const Duration(milliseconds: 300), hideAutoComplete);
       },
       cursorColor: cursorColor,
       autocorrect: false,
@@ -369,7 +368,7 @@ class _CodeFieldState extends State<CodeField> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (widget.lineNumbers && numberCol != null) numberCol,
-          Expanded(key:_editorKey, child: codeCol),
+          Expanded(child: codeCol),
         ],
       ),
     );
