@@ -71,6 +71,7 @@ class CodeField extends StatefulWidget {
   final String? hintText;
   final TextStyle? hintStyle;
   final CodeAutoComplete? autoComplete;
+  final UndoHistoryController? undoHistoryController;
 
   const CodeField({
     Key? key,
@@ -101,6 +102,7 @@ class CodeField extends StatefulWidget {
     this.hintText,
     this.hintStyle,
     this.autoComplete,
+    this.undoHistoryController,
   }) : super(key: key);
 
   @override
@@ -336,6 +338,7 @@ class _CodeFieldState extends State<CodeField> {
       autocorrect: false,
       enableSuggestions: false,
       enabled: widget.enabled,
+      undoController: widget.undoHistoryController,
       onChanged: (text) {
         widget.onChanged?.call(text);
         // if (widget.autoComplete?.panelOverlay == null) {
