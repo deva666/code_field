@@ -14,7 +14,7 @@ import 'editor_params.dart';
 class CodeController extends TextEditingController {
   Mode? _language;
   CodeAutoComplete? autoComplete;
-  
+
   /// A highlight language to parse the text with
   Mode? get language => _language;
 
@@ -146,14 +146,12 @@ class CodeController extends TextEditingController {
 
     if (autoComplete?.isShowing ?? false) {
       if (event.isKeyPressed(LogicalKeyboardKey.arrowDown)) {
-        autoComplete!.current =
-            (autoComplete!.current + 1) % autoComplete!.options.length;
+        autoComplete!.current = (autoComplete!.current + 1) % autoComplete!.options.length;
         autoComplete!.panelSetState?.call(() {});
         return KeyEventResult.handled;
       }
       if (event.isKeyPressed(LogicalKeyboardKey.arrowUp)) {
-        autoComplete!.current =
-            (autoComplete!.current - 1) % autoComplete!.options.length;
+        autoComplete!.current = (autoComplete!.current - 1) % autoComplete!.options.length;
         autoComplete!.panelSetState?.call(() {});
         return KeyEventResult.handled;
       }
@@ -178,6 +176,75 @@ class CodeController extends TextEditingController {
     }
 
     return sel.start;
+  }
+
+  void indentSelection() {
+    final tabSpaces = params.tabSpaces;
+    final tab = ' ' * tabSpaces;
+    if (selection.start == -1 || selection.end == -1) {
+      return;
+    }
+    final start = lineStart(selection.start);
+    final end = lineEnd(selection.end);
+
+    final selectedText = text.substring(start, end);
+    var lines = selectedText.split('\n');
+    lines = lines
+        .map(
+          (e) => tab + e,
+        )
+        .toList();
+    final indented = lines.join('\n');
+    text = text.replaceRange(start, end, indented);
+  }
+
+  void unIndentSelection() {
+    final tabSpaces = params.tabSpaces;
+    final tab = ' ' * tabSpaces;
+    if (selection.start == -1 || selection.end == -1) {
+      return;
+    }
+    final start = lineStart(selection.start);
+    final end = lineEnd(selection.end);
+
+    final selectedText = text.substring(start, end);
+    var lines = selectedText.split('\n');
+    lines = lines
+        .map(
+          (l) {
+            if (l.startsWith(tab)) {
+              return l.substring(tab.length);
+            } else {
+              return l;
+            }
+          } ,
+        )
+        .toList();
+    final unIndented = lines.join('\n');
+    text = text.replaceRange(start, end, unIndented);
+  }
+
+  int lineStart(int offset) {
+    if (offset == 0) {
+      return 0;
+    }
+    final firstPart = text.substring(0, offset);
+    final newLines = RegExp(r'\n').allMatches(firstPart).toList();
+    if (newLines.isNotEmpty) {
+      final lastMatch = newLines.last;
+      return lastMatch.end;
+    }
+    return 0;
+  }
+
+  int lineEnd(int offset) {
+    final match = RegExp(r'\n').firstMatch(text.substring(offset));
+    if (match == null) {
+      return 0;
+    }
+    else {
+      return match.start + offset;
+    }
   }
 
   @override
@@ -211,11 +278,7 @@ class CodeController extends TextEditingController {
         }
 
         int idx;
-        for (idx = 1;
-            idx < m.groupCount &&
-                idx <= _styleList.length &&
-                m.group(idx) == null;
-            idx++) {}
+        for (idx = 1; idx < m.groupCount && idx <= _styleList.length && m.group(idx) == null; idx++) {}
 
         children.add(TextSpan(
           text: m[0],
