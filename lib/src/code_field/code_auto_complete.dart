@@ -11,7 +11,7 @@ class CodeAutoComplete<T> {
   List<T> Function(String, int cursorIndex, Mode?) optionsBuilder;
 
   /// depends on your options, you can create your own item widget.
-  final Widget Function(BuildContext, T, bool, Function(String) onTap) itemBuilder;
+  final Widget Function(T, bool, Function(String) onTap) itemBuilder;
 
   /// set the tip panel size.
   final BoxConstraints constraints;
@@ -88,7 +88,7 @@ class CodeAutoComplete<T> {
             return DraggableWidget(
               onOffsetUpdate: onOffsetUpdated,
               initialOffset: _getInitialOffset(context, widget, focusNode),
-              child: panelWrap(codeFieldContext, wdg, focusNode),
+              child: panelWrap(context, wdg, focusNode),
             );
           } else {
             return const Offstage();
@@ -103,12 +103,12 @@ class CodeAutoComplete<T> {
   }
 
   /// the core widget of tip panel.
-  Widget buildPanel(BuildContext context) {
+  Widget buildPanel() {
     return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: options.map((tip) => itemBuilder(context, tip, current == options.indexOf(tip), write)).toList(),
+        children: options.map((tip) => itemBuilder(tip, current == options.indexOf(tip), write)).toList(),
       ),
     );
   }
@@ -158,8 +158,6 @@ class CodeAutoComplete<T> {
   }
 
   Offset _getInitialOffset(BuildContext context, CodeField widget, FocusNode focusNode) {
-    // return Offset(
-    //     200, EdgeInsets.fromViewPadding(View.of(context).viewInsets, View.of(context).devicePixelRatio).bottom + 64);
     final inital = initialOffset?.call();
     if (inital != null) {
       return inital;
@@ -209,7 +207,7 @@ class CodeAutoComplete<T> {
         context,
         ConstrainedBox(
           constraints: constraints,
-          child: buildPanel(context),
+          child: buildPanel(),
         ),
       ),
     );

@@ -59,7 +59,6 @@ class CodeField extends StatefulWidget {
   /// {@macro flutter.widgets.textField.selectionControls}
   final TextSelectionControls? selectionControls;
 
-
   final Color? background;
   final EdgeInsets padding;
   final Decoration? decoration;
@@ -122,6 +121,15 @@ class _CodeFieldState extends State<CodeField> {
   String longestLine = '';
 
   @override
+  void didChangeDependencies() {
+    widget.autoComplete?.remove();
+     WidgetsBinding.instance.addPostFrameCallback((_) {
+      createAutoComplate();
+    });
+    super.didChangeDependencies();
+  }
+
+  @override
   void initState() {
     super.initState();
     _controllers = LinkedScrollControllerGroup();
@@ -133,16 +141,16 @@ class _CodeFieldState extends State<CodeField> {
     _focusNode!.onKey = _onKey;
     _focusNode!.attach(context, onKey: _onKey);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      createAutoComplate();
-    });
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   createAutoComplate();
+    // });
 
     _onTextChanged();
   }
 
   void createAutoComplate() {
     widget.controller.autoComplete = widget.autoComplete;
-    widget.autoComplete?.show(context,widget, _focusNode!);
+    widget.autoComplete?.show(context, widget, _focusNode!);
     _codeScroll?.addListener(hideAutoComplete);
   }
 
@@ -224,8 +232,7 @@ class _CodeFieldState extends State<CodeField> {
       scrollDirection: Axis.horizontal,
 
       /// Prevents the horizontal scroll if horizontalScroll is false
-      physics:
-          widget.horizontalScroll ? null : const NeverScrollableScrollPhysics(),
+      physics: widget.horizontalScroll ? null : const NeverScrollableScrollPhysics(),
       child: intrinsic,
     );
   }
@@ -246,8 +253,7 @@ class _CodeFieldState extends State<CodeField> {
     final defaultText = Colors.grey.shade200;
 
     final styles = CodeTheme.of(context)?.styles;
-    Color? backgroundCol =
-        widget.background ?? styles?[rootKey]?.backgroundColor ?? defaultBg;
+    Color? backgroundCol = widget.background ?? styles?[rootKey]?.backgroundColor ?? defaultBg;
 
     if (widget.decoration != null) {
       backgroundCol = null;
@@ -259,10 +265,8 @@ class _CodeFieldState extends State<CodeField> {
       fontSize: textStyle.fontSize ?? 16.0,
     );
 
-    TextStyle numberTextStyle =
-        widget.lineNumberStyle.textStyle ?? const TextStyle();
-    final numberColor =
-        (styles?[rootKey]?.color ?? defaultText).withOpacity(0.7);
+    TextStyle numberTextStyle = widget.lineNumberStyle.textStyle ?? const TextStyle();
+    final numberColor = (styles?[rootKey]?.color ?? defaultText).withOpacity(0.7);
 
     // Copy important attributes
     numberTextStyle = numberTextStyle.copyWith(
@@ -271,8 +275,7 @@ class _CodeFieldState extends State<CodeField> {
       fontFamily: textStyle.fontFamily,
     );
 
-    final cursorColor =
-        widget.cursorColor ?? styles?[rootKey]?.color ?? defaultText;
+    final cursorColor = widget.cursorColor ?? styles?[rootKey]?.color ?? defaultText;
 
     TextField? lineNumberCol;
     Container? numberCol;
@@ -341,9 +344,6 @@ class _CodeFieldState extends State<CodeField> {
       undoController: widget.undoHistoryController,
       onChanged: (text) {
         widget.onChanged?.call(text);
-        // if (widget.autoComplete?.panelOverlay == null) {
-        //   widget.autoComplete?.show(context, widget, _focusNode!);
-        // }
         widget.autoComplete?.streamController.add(text);
       },
       readOnly: widget.readOnly,
@@ -356,9 +356,7 @@ class _CodeFieldState extends State<CodeField> {
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           // Control horizontal scrolling
-          return widget.wrap
-              ? codeField
-              : _wrapInScrollView(codeField, textStyle, constraints.maxWidth);
+          return widget.wrap ? codeField : _wrapInScrollView(codeField, textStyle, constraints.maxWidth);
         },
       ),
     );

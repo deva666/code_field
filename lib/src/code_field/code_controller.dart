@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:highlight/highlight_core.dart';
@@ -184,6 +186,8 @@ class CodeController extends TextEditingController {
     if (selection.start == -1 || selection.end == -1) {
       return;
     }
+    final selStart = selection.start;
+    final selEnd = selection.end;
     final start = lineStart(selection.start);
     final end = lineEnd(selection.end);
 
@@ -196,6 +200,7 @@ class CodeController extends TextEditingController {
         .toList();
     final indented = lines.join('\n');
     text = text.replaceRange(start, end, indented);
+    selection = TextSelection(baseOffset: selStart + tabSpaces, extentOffset: selEnd + (tabSpaces * lines.length));
   }
 
   void unIndentSelection() {
@@ -204,6 +209,41 @@ class CodeController extends TextEditingController {
     if (selection.start == -1 || selection.end == -1) {
       return;
     }
+    final selStart = selection.start;
+    final selEnd = selection.end;
+    final start = lineStart(selection.start);
+    final end = lineEnd(selection.end);
+    final selectedText = text.substring(start, end);
+    var lines = selectedText.split('\n');
+    var newSelection = (start: selStart, end: selEnd);
+    var modified = false;
+    for (var i = 0; i < lines.length; i++) {
+      final l = lines[i];
+      if (l.startsWith(tab)) {
+        modified = true;
+        lines[i] = l.substring(tab.length);
+        if (i == 0) {
+          newSelection = (start: max(0, newSelection.start - tabSpaces), end: newSelection.end - tabSpaces);
+        } else {
+          newSelection = (start: newSelection.start, end: max(0, newSelection.end - tabSpaces));
+        }
+      }
+    }
+    if (!modified) {
+      return;
+    }
+    final unIndented = lines.join('\n');
+    text = text.replaceRange(start, end, unIndented);
+    selection = TextSelection(baseOffset: newSelection.start, extentOffset: newSelection.end);
+  }
+
+  void commentSelection() {
+    const comment = '#';
+    if (selection.start == -1 || selection.end == -1) {
+      return;
+    }
+    final selStart = selection.start;
+    final selEnd = selection.end;
     final start = lineStart(selection.start);
     final end = lineEnd(selection.end);
 
@@ -211,17 +251,47 @@ class CodeController extends TextEditingController {
     var lines = selectedText.split('\n');
     lines = lines
         .map(
-          (l) {
-            if (l.startsWith(tab)) {
-              return l.substring(tab.length);
-            } else {
-              return l;
-            }
-          } ,
+          (e) => comment + e,
         )
         .toList();
-    final unIndented = lines.join('\n');
-    text = text.replaceRange(start, end, unIndented);
+    final commented = lines.join('\n');
+    text = text.replaceRange(start, end, commented);
+    selection =
+        TextSelection(baseOffset: selStart + comment.length, extentOffset: selEnd + (comment.length * lines.length));
+  }
+
+  void unCommentSelection() {
+    const comment = '#';
+    if (selection.start == -1 || selection.end == -1) {
+      return;
+    }
+    final selStart = selection.start;
+    final selEnd = selection.end;
+    final start = lineStart(selection.start);
+    final end = lineEnd(selection.end);
+
+    final selectedText = text.substring(start, end);
+    var lines = selectedText.split('\n');
+    var newSelection = (start: selStart, end: selEnd);
+    var modified = false;
+    for (var i = 0; i < lines.length; i++) {
+      final l = lines[i];
+      if (l.startsWith(comment)) {
+        modified = true;
+        lines[i] = l.substring(comment.length);
+        if (i == 0) {
+          newSelection = (start: max(0, newSelection.start - comment.length), end: newSelection.end - comment.length);
+        } else {
+          newSelection = (start: newSelection.start, end: max(0, newSelection.end - comment.length));
+        }
+      }
+    }
+    if (!modified) {
+      return;
+    }
+    final unCommented = lines.join('\n');
+    text = text.replaceRange(start, end, unCommented);
+    selection = TextSelection(baseOffset: newSelection.start, extentOffset: newSelection.end);
   }
 
   int lineStart(int offset) {
@@ -240,9 +310,8 @@ class CodeController extends TextEditingController {
   int lineEnd(int offset) {
     final match = RegExp(r'\n').firstMatch(text.substring(offset));
     if (match == null) {
-      return 0;
-    }
-    else {
+      return offset;
+    } else {
       return match.start + offset;
     }
   }
