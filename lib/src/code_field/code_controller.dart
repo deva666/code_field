@@ -276,9 +276,9 @@ class CodeController extends TextEditingController {
     var modified = false;
     for (var i = 0; i < lines.length; i++) {
       final l = lines[i];
-      if (l.startsWith(comment)) {
+      if (l.startsWith(RegExp(r'\s*' + comment))) {
         modified = true;
-        lines[i] = l.substring(comment.length);
+        lines[i] = l.replaceFirst(comment, '');
         if (i == 0) {
           newSelection = (start: max(0, newSelection.start - comment.length), end: newSelection.end - comment.length);
         } else {
