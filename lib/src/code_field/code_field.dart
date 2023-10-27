@@ -121,15 +121,6 @@ class _CodeFieldState extends State<CodeField> {
   String longestLine = '';
 
   @override
-  void didChangeDependencies() {
-    widget.autoComplete?.remove();
-     WidgetsBinding.instance.addPostFrameCallback((_) {
-      createAutoComplate();
-    });
-    super.didChangeDependencies();
-  }
-
-  @override
   void initState() {
     super.initState();
     _controllers = LinkedScrollControllerGroup();
@@ -141,9 +132,9 @@ class _CodeFieldState extends State<CodeField> {
     _focusNode!.onKey = _onKey;
     _focusNode!.attach(context, onKey: _onKey);
 
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   createAutoComplate();
-    // });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      createAutoComplate();
+    });
 
     _onTextChanged();
   }
@@ -315,7 +306,7 @@ class _CodeFieldState extends State<CodeField> {
       smartQuotesType: widget.smartQuotesType,
       focusNode: _focusNode,
       onTap: () {
-        // widget.autoComplete?.hide();
+        widget.autoComplete?.hide();
         widget.onTap?.call();
       },
       scrollPadding: widget.padding,
