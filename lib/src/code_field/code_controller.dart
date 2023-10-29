@@ -12,6 +12,7 @@ import '../code_theme/code_theme.dart';
 import '../code_theme/code_theme_data.dart';
 import 'code_auto_complete.dart';
 import 'editor_params.dart';
+import 'mode_comments.dart';
 
 class CodeController extends TextEditingController {
   Mode? _language;
@@ -238,7 +239,10 @@ class CodeController extends TextEditingController {
   }
 
   void commentSelection() {
-    const comment = '#';
+    final comment = _language?.getComment();
+    if (comment == null) {
+      return;
+    }
     if (selection.start == -1 || selection.end == -1) {
       return;
     }
@@ -261,7 +265,10 @@ class CodeController extends TextEditingController {
   }
 
   void unCommentSelection() {
-    const comment = '#';
+    final comment = _language?.getComment();
+    if (comment == null) {
+      return;
+    }
     if (selection.start == -1 || selection.end == -1) {
       return;
     }
