@@ -2,7 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:highlight/highlight_core.dart';
+import 'package:highlighting/highlighting.dart';
+import 'package:highlighting/src/language.dart';
 
 import '../code_modifiers/close_block_code_modifier.dart';
 import '../code_modifiers/code_modifier.dart';
@@ -15,20 +16,20 @@ import 'editor_params.dart';
 import 'mode_comments.dart';
 
 class CodeController extends TextEditingController {
-  Mode? _language;
+  Language? _language;
   CodeAutoComplete? autoComplete;
 
   /// A highlight language to parse the text with
-  Mode? get language => _language;
+  Language? get language => _language;
 
-  set language(Mode? language) {
+  set language(Language? language) {
     if (language == _language) {
       return;
     }
 
     if (language != null) {
       _languageId = language.hashCode.toString();
-      highlight.registerLanguage(_languageId, language);
+      highlight.registerLanguage(language, id: _languageId);
     }
 
     _language = language;
@@ -59,7 +60,7 @@ class CodeController extends TextEditingController {
 
   CodeController({
     super.text,
-    Mode? language,
+    Language? language,
     this.patternMap,
     this.stringMap,
     this.params = const EditorParams(),
@@ -376,7 +377,7 @@ class CodeController extends TextEditingController {
     CodeThemeData? widgetTheme,
     TextStyle? style,
   ) {
-    final result = highlight.parse(text, language: _languageId);
+    final result = highlight.parse(text, languageId: language!.id);
 
     final nodes = result.nodes;
 

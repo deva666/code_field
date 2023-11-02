@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:highlight/highlight.dart';
+import 'package:highlighting/highlighting.dart';
 import '../../code_text_field.dart';
 
 typedef OffsetGetter = Offset? Function();

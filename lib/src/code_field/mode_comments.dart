@@ -1,46 +1,48 @@
 // ignore_for_file: depend_on_referenced_packages
 
-import 'package:highlight/highlight.dart';
-import 'package:highlight/languages/armasm.dart';
-import 'package:highlight/languages/bash.dart';
-import 'package:highlight/languages/basic.dart';
-import 'package:highlight/languages/clojure.dart';
-import 'package:highlight/languages/cpp.dart';
-import 'package:highlight/languages/cs.dart';
-import 'package:highlight/languages/d.dart';
-import 'package:highlight/languages/dockerfile.dart';
-import 'package:highlight/languages/elixir.dart';
-import 'package:highlight/languages/erlang.dart';
-import 'package:highlight/languages/fortran.dart';
-import 'package:highlight/languages/go.dart';
-import 'package:highlight/languages/groovy.dart';
-import 'package:highlight/languages/haskell.dart';
-import 'package:highlight/languages/java.dart';
-import 'package:highlight/languages/javascript.dart';
-import 'package:highlight/languages/lisp.dart';
-import 'package:highlight/languages/lua.dart';
-import 'package:highlight/languages/objectivec.dart';
-import 'package:highlight/languages/ocaml.dart';
-import 'package:highlight/languages/perl.dart';
-import 'package:highlight/languages/php.dart';
-import 'package:highlight/languages/prolog.dart';
-import 'package:highlight/languages/python.dart';
-import 'package:highlight/languages/r.dart';
-import 'package:highlight/languages/ruby.dart';
-import 'package:highlight/languages/rust.dart';
-import 'package:highlight/languages/scala.dart';
-import 'package:highlight/languages/sql.dart';
-import 'package:highlight/languages/swift.dart';
-import 'package:highlight/languages/typescript.dart';
+import 'package:highlighting/highlighting.dart';
+import 'package:highlighting/languages/armasm.dart';
+import 'package:highlighting/languages/bash.dart';
+import 'package:highlighting/languages/basic.dart';
+import 'package:highlighting/languages/clojure.dart';
+import 'package:highlighting/languages/cpp.dart';
+import 'package:highlighting/languages/csharp.dart';
+import 'package:highlighting/languages/d.dart';
+import 'package:highlighting/languages/dockerfile.dart';
+import 'package:highlighting/languages/elixir.dart';
+import 'package:highlighting/languages/erlang.dart';
+import 'package:highlighting/languages/fortran.dart';
+import 'package:highlighting/languages/go.dart';
+import 'package:highlighting/languages/groovy.dart';
+import 'package:highlighting/languages/haskell.dart';
+import 'package:highlighting/languages/java.dart';
+import 'package:highlighting/languages/javascript.dart';
+import 'package:highlighting/languages/lisp.dart';
+import 'package:highlighting/languages/lua.dart';
+import 'package:highlighting/languages/objectivec.dart';
+import 'package:highlighting/languages/ocaml.dart';
+import 'package:highlighting/languages/perl.dart';
+import 'package:highlighting/languages/php.dart';
+import 'package:highlighting/languages/prolog.dart';
+import 'package:highlighting/languages/python.dart';
+import 'package:highlighting/languages/r.dart';
+import 'package:highlighting/languages/ruby.dart';
+import 'package:highlighting/languages/rust.dart';
+import 'package:highlighting/languages/scala.dart';
+import 'package:highlighting/languages/sql.dart';
+import 'package:highlighting/languages/swift.dart';
+import 'package:highlighting/languages/typescript.dart';
+import 'package:highlighting/src/language.dart';
+import 'package:highlighting/languages/all.dart';
 
-final _kLangToModeMap = <Mode, String>{
+final _kLangToModeMap = <Language, String>{
   armasm: ';',
   bash: '#',
   basic: 'REM',
   // 48: cpp,
   // 49: cpp,
   cpp: '//',
-  cs: '//',
+  csharp: '//',
   // 52: cpp,
   // 53: cpp,
   cpp: '//',
@@ -79,6 +81,6 @@ final _kLangToModeMap = <Mode, String>{
   groovy: '//'
 };
 
-extension Comments on Mode {
+extension Comments on Language {
   String? getComment() => _kLangToModeMap[this];
 }
