@@ -1,13 +1,19 @@
+import 'dart:io';
 import 'dart:math';
 
+import 'package:code_text_field/src/code_modifiers/ios_close_quoutes_modifler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:highlighting/highlighting.dart';
+import 'package:highlighting/languages/xml.dart';
 import 'package:highlighting/src/language.dart';
 
 import '../code_modifiers/close_block_code_modifier.dart';
 import '../code_modifiers/code_modifier.dart';
 import '../code_modifiers/indent_code_modifier.dart';
+import '../code_modifiers/ios_close_single_quoute_modifier.dart';
+import '../code_modifiers/ios_open_quotes_modifier.dart';
+import '../code_modifiers/ios_opens_single_quote_modifier.dart';
 import '../code_modifiers/tab_code_modifier.dart';
 import '../code_theme/code_theme.dart';
 import '../code_theme/code_theme_data.dart';
@@ -68,6 +74,10 @@ class CodeController extends TextEditingController {
       IndentModifier(),
       CloseBlockModifier(),
       TabModifier(),
+      IOSOpenQuoutesModifier(),
+      IOSCloseQuoutesModifier(),
+      IOSOpenSingleQuouteModifier(),
+      IOSCloseSingleQuouteModifier()
     ],
   }) {
     this.language = language;
@@ -265,6 +275,47 @@ class CodeController extends TextEditingController {
         TextSelection(baseOffset: selStart + comment.length, extentOffset: selEnd + (comment.length * lines.length));
   }
 
+  void commentMultiLanguageSelection() {
+    // final comment = _language?.getComment();
+    // if (comment == null) {
+    //   return;
+    // }
+    if (selection.start == -1 || selection.end == -1) {
+      return;
+    }
+    final selStart = selection.start;
+    final selEnd = selection.end;
+    final start = lineStart(selection.start);
+    final end = lineEnd(selection.end);
+
+    final selectedText = text.substring(start, end);
+
+    var lines = selectedText.split('\n');
+    final addedChars = lines
+        .map(
+          commentLine,
+        )
+        .toList();
+    lines = addedChars.map((e) => e.$1).toList();
+    final addedCount = addedChars.map((e) => e.$2 + e.$3).reduce((value, element) => value + element);
+    final commented = lines.join('\n');
+    text = text.replaceRange(start, end, commented);
+    selection =
+        TextSelection(baseOffset: selStart + addedChars[0].$2, extentOffset: selEnd + (addedCount - addedChars[0].$3));
+  }
+
+  (String, int, int) commentLine(String line) {
+    var result = highlight.parse(line, languageId: _language!.id);
+    if (result.relevance <= 0.2) {
+      result = highlight.parse(line, languageId: xml.id);
+      if (result.relevance > 0.9) {
+        return ('<!--$line-->', 4, 3);
+      }
+    }
+    final comment = _language?.getComment();
+    return ('$comment$line', comment?.length ?? 0, 0);
+  }
+
   void unCommentSelection() {
     final comment = _language?.getComment();
     if (comment == null) {
@@ -300,6 +351,52 @@ class CodeController extends TextEditingController {
     final unCommented = lines.join('\n');
     text = text.replaceRange(start, end, unCommented);
     selection = TextSelection(baseOffset: newSelection.start, extentOffset: newSelection.end);
+  }
+
+  void unCommentMulitModeSelection() {
+    final comment = _language?.getComment();
+    if (comment == null) {
+      return;
+    }
+    if (selection.start == -1 || selection.end == -1) {
+      return;
+    }
+    final selStart = selection.start;
+    final selEnd = selection.end;
+    final start = lineStart(selection.start);
+    final end = lineEnd(selection.end);
+
+    final selectedText = text.substring(start, end);
+    var lines = selectedText.split('\n');
+    var newSelection = (start: selStart, end: selEnd);
+    var modified = false;
+    for (var i = 0; i < lines.length; i++) {
+      modified = true;
+      final l = lines[i];
+      final isXml = highlight.parse(l, languageId: xml.id).relevance > 0.7;
+      if (isXml && RegExp('<!--(.*?)-->').hasMatch(l)) {
+        lines[i] = l.replaceFirst(RegExp('<!--'), '').replaceAll('-->', '');
+        if (i == 0) {
+          newSelection = (start: max(0, newSelection.start - 4), end: newSelection.end - 3);
+        } else {
+          newSelection = (start: newSelection.start, end: max(0, newSelection.end - 7));
+        }
+      } else if (l.startsWith(RegExp(r'\s*' + comment))) {
+        modified = true;
+        lines[i] = l.replaceFirst(comment, '');
+        if (i == 0) {
+          newSelection = (start: max(0, newSelection.start - comment.length), end: newSelection.end - comment.length);
+        } else {
+          newSelection = (start: newSelection.start, end: max(0, newSelection.end - comment.length));
+        }
+      }
+    }
+    if (!modified) {
+      return;
+    }
+    final unCommented = lines.join('\n');
+    text = text.replaceRange(start, end, unCommented);
+    selection = TextSelection(baseOffset: newSelection.start, extentOffset: min(text.length, newSelection.end));
   }
 
   int lineStart(int offset) {
@@ -378,7 +475,6 @@ class CodeController extends TextEditingController {
     TextStyle? style,
   ) {
     final result = highlight.parse(text, languageId: language!.id);
-
     final nodes = result.nodes;
 
     final children = <TextSpan>[];

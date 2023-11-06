@@ -32,6 +32,7 @@ import 'package:highlighting/languages/scala.dart';
 import 'package:highlighting/languages/sql.dart';
 import 'package:highlighting/languages/swift.dart';
 import 'package:highlighting/languages/typescript.dart';
+import 'package:highlighting/languages/xml.dart';
 import 'package:highlighting/src/language.dart';
 import 'package:highlighting/languages/all.dart';
 
@@ -78,7 +79,7 @@ final _kLangToModeMap = <Language, String>{
   perl: '#',
   clojure: ';',
   // 87: fsharp,
-  groovy: '//'
+  groovy: '//',
 };
 
 extension Comments on Language {
