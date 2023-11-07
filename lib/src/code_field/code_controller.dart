@@ -275,11 +275,7 @@ class CodeController extends TextEditingController {
         TextSelection(baseOffset: selStart + comment.length, extentOffset: selEnd + (comment.length * lines.length));
   }
 
-  void commentMultiLanguageSelection() {
-    // final comment = _language?.getComment();
-    // if (comment == null) {
-    //   return;
-    // }
+  void commentMultiLanguageSelection(Language secondaryLang) {
     if (selection.start == -1 || selection.end == -1) {
       return;
     }
@@ -293,7 +289,7 @@ class CodeController extends TextEditingController {
     var lines = selectedText.split('\n');
     final addedChars = lines
         .map(
-          commentLine,
+          (e) => commentLine(e, secondaryLang: secondaryLang),
         )
         .toList();
     lines = addedChars.map((e) => e.$1).toList();
@@ -304,16 +300,19 @@ class CodeController extends TextEditingController {
         TextSelection(baseOffset: selStart + addedChars[0].$2, extentOffset: selEnd + (addedCount - addedChars[0].$3));
   }
 
-  (String, int, int) commentLine(String line) {
-    var result = highlight.parse(line, languageId: _language!.id);
+  (String, int, int) commentLine(String line, {Language? secondaryLang}) {
+    var result = highlight.parse(line, languageId: secondaryLang?.id ?? _language!.id);
     if (result.relevance <= 0.2) {
       result = highlight.parse(line, languageId: xml.id);
       if (result.relevance > 0.9) {
         return ('<!--$line-->', 4, 3);
       }
     }
-    final comment = _language?.getComment();
-    return ('$comment$line', comment?.length ?? 0, 0);
+    final comment = secondaryLang?.getComment() ?? _language?.getComment();
+    if (comment == null) {
+      return (line, 0, 0);
+    }
+    return ('$comment$line', comment.length, 0);
   }
 
   void unCommentSelection() {
@@ -353,8 +352,8 @@ class CodeController extends TextEditingController {
     selection = TextSelection(baseOffset: newSelection.start, extentOffset: newSelection.end);
   }
 
-  void unCommentMulitModeSelection() {
-    final comment = _language?.getComment();
+  void unCommentMulitModeSelection(Language secondaryLang) {
+    final comment = secondaryLang.getComment();
     if (comment == null) {
       return;
     }
