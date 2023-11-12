@@ -301,12 +301,9 @@ class CodeController extends TextEditingController {
   }
 
   (String, int, int) commentLine(String line, {Language? secondaryLang}) {
-    var result = highlight.parse(line, languageId: secondaryLang?.id ?? _language!.id);
-    if (result.relevance <= 0.2) {
-      result = highlight.parse(line, languageId: xml.id);
-      if (result.relevance > 0.9) {
-        return ('<!--$line-->', 4, 3);
-      }
+    var result = highlight.parse(line, languageId: xml.id);
+    if (result.relevance >= 0.9) {
+      return ('<!--$line-->', 4, 3);
     }
     final comment = secondaryLang?.getComment() ?? _language?.getComment();
     if (comment == null) {
@@ -349,7 +346,7 @@ class CodeController extends TextEditingController {
     }
     final unCommented = lines.join('\n');
     text = text.replaceRange(start, end, unCommented);
-    selection = TextSelection(baseOffset: newSelection.start, extentOffset: newSelection.end);
+    selection = TextSelection(baseOffset: newSelection.start, extentOffset: min(text.length, newSelection.end));
   }
 
   void unCommentMulitModeSelection(Language secondaryLang) {
@@ -376,7 +373,7 @@ class CodeController extends TextEditingController {
       if (isXml && RegExp('<!--(.*?)-->').hasMatch(l)) {
         lines[i] = l.replaceFirst(RegExp('<!--'), '').replaceAll('-->', '');
         if (i == 0) {
-          newSelection = (start: max(0, newSelection.start - 4), end: newSelection.end - 3);
+          newSelection = (start: max(0, newSelection.start - 4), end: newSelection.end - 4);
         } else {
           newSelection = (start: newSelection.start, end: max(0, newSelection.end - 7));
         }
