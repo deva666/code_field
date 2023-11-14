@@ -5,9 +5,9 @@
 import 'package:flutter/material.dart';
 import 'package:code_text_field/code_text_field.dart';
 // Import the language & theme
-import 'package:highlight/languages/dart.dart';
-import 'package:flutter_highlight/themes/monokai-sublime.dart';
-import 'package:flutter_highlight/themes/a11y-dark.dart';
+import 'package:highlighting/languages/dart.dart';
+import 'package:flutter_highlighting/themes/monokai-sublime.dart';
+import 'package:flutter_highlighting/themes/a11y-dark.dart';
 
 class CodeEditor extends StatefulWidget {
   @override
