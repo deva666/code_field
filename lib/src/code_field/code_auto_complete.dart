@@ -43,6 +43,8 @@ class CodeAutoComplete<T> {
   StreamController streamController;
   Stream get stream => streamController.stream;
 
+  bool get active => panelOverlay != null;
+
   CodeAutoComplete({
     required this.optionsBuilder,
     required this.itemBuilder,

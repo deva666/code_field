@@ -131,7 +131,7 @@ class _CodeFieldState extends State<CodeField> {
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode!.onKey = _onKey;
     _focusNode!.attach(context, onKey: _onKey);
-
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       createAutoComplate();
     });
@@ -140,6 +140,7 @@ class _CodeFieldState extends State<CodeField> {
   }
 
   void createAutoComplate() {
+    widget.autoComplete?.remove();
     widget.controller.autoComplete = widget.autoComplete;
     widget.autoComplete?.show(context, widget, _focusNode!);
     _codeScroll?.addListener(hideAutoComplete);
@@ -315,7 +316,7 @@ class _CodeFieldState extends State<CodeField> {
       minLines: widget.minLines,
       selectionControls: widget.selectionControls,
       maxLines: widget.maxLines,
-      expands: widget.expands,
+      expands: true,
       scrollController: _codeScroll,
       decoration: InputDecoration(
         disabledBorder: InputBorder.none,
