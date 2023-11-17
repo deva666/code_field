@@ -9,6 +9,7 @@ import '../line_numbers/line_number_controller.dart';
 import '../line_numbers/line_number_style.dart';
 import 'code_auto_complete.dart';
 import 'code_controller.dart';
+import 'code_snippet_selector.dart';
 
 class CodeField extends StatefulWidget {
   /// {@macro flutter.widgets.textField.smartQuotesType}
@@ -70,10 +71,11 @@ class CodeField extends StatefulWidget {
   final String? hintText;
   final TextStyle? hintStyle;
   final CodeAutoComplete? autoComplete;
+  final CodeSnippetSelector? codeSnippetSelector;
   final UndoHistoryController? undoHistoryController;
 
   const CodeField({
-    Key? key,
+    super.key,
     required this.controller,
     this.minLines,
     this.maxLines,
@@ -102,7 +104,8 @@ class CodeField extends StatefulWidget {
     this.hintStyle,
     this.autoComplete,
     this.undoHistoryController,
-  }) : super(key: key);
+    this.codeSnippetSelector,
+  });
 
   @override
   State<CodeField> createState() => _CodeFieldState();
@@ -134,16 +137,21 @@ class _CodeFieldState extends State<CodeField> {
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       createAutoComplate();
+      createCodeSnippetSelector();
     });
 
     _onTextChanged();
   }
 
   void createAutoComplate() {
-    widget.autoComplete?.remove();
     widget.controller.autoComplete = widget.autoComplete;
     widget.autoComplete?.show(context, widget, _focusNode!);
-    _codeScroll?.addListener(hideAutoComplete);
+    _codeScroll?.addListener(hideAllPopups);
+  }
+
+  void createCodeSnippetSelector() {
+    widget.controller.codeSnippetSelector = widget.codeSnippetSelector;
+    widget.codeSnippetSelector?.show(context, widget, _focusNode!, hideAutoComplete);
   }
 
   KeyEventResult _onKey(FocusNode node, RawKeyEvent event) {
@@ -235,6 +243,15 @@ class _CodeFieldState extends State<CodeField> {
 
   void hideAutoComplete() {
     widget.autoComplete?.hide();
+  }
+
+  void hideSnippetSelector() {
+    widget.codeSnippetSelector?.hide();
+  }
+
+  void hideAllPopups() {
+    hideSnippetSelector();
+    hideAutoComplete();
   }
 
   @override

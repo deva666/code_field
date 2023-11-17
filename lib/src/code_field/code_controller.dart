@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'dart:math';
 
-import 'package:code_text_field/src/code_modifiers/ios_close_quoutes_modifler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:highlighting/highlighting.dart';
@@ -11,6 +9,7 @@ import 'package:highlighting/src/language.dart';
 import '../code_modifiers/close_block_code_modifier.dart';
 import '../code_modifiers/code_modifier.dart';
 import '../code_modifiers/indent_code_modifier.dart';
+import '../code_modifiers/ios_close_quoutes_modifler.dart';
 import '../code_modifiers/ios_close_single_quoute_modifier.dart';
 import '../code_modifiers/ios_open_quotes_modifier.dart';
 import '../code_modifiers/ios_opens_single_quote_modifier.dart';
@@ -18,12 +17,14 @@ import '../code_modifiers/tab_code_modifier.dart';
 import '../code_theme/code_theme.dart';
 import '../code_theme/code_theme_data.dart';
 import 'code_auto_complete.dart';
+import 'code_snippet_selector.dart';
 import 'editor_params.dart';
 import 'mode_comments.dart';
 
 class CodeController extends TextEditingController {
   Language? _language;
   CodeAutoComplete? autoComplete;
+  CodeSnippetSelector? codeSnippetSelector;
 
   /// A highlight language to parse the text with
   Language? get language => _language;
