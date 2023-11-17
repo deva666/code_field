@@ -43,6 +43,8 @@ class CodeAutoComplete<T> {
   StreamController streamController;
   Stream get stream => streamController.stream;
 
+  Function()? showCallback;
+
   bool get active => panelOverlay != null;
 
   CodeAutoComplete({
@@ -71,8 +73,9 @@ class CodeAutoComplete<T> {
   }
 
   /// create and show the tip panel.
-  void show(BuildContext codeFieldContext, CodeField wdg, FocusNode focusNode) {
+  void show(BuildContext codeFieldContext, CodeField wdg, FocusNode focusNode, Function() callback) {
     widget = wdg;
+    showCallback = callback;
     OverlayEntry overlayEntry = OverlayEntry(builder: (context) {
       return StreamBuilder(
         stream: stream,
@@ -87,6 +90,7 @@ class CodeAutoComplete<T> {
           if (!focusNode.hasFocus || options.isEmpty) return const Offstage();
           if (snapshot.hasData && snapshot.data != true && snapshot.data != null && '${snapshot.data}'.isNotEmpty) {
             isShowing = true;
+            showCallback?.call();
             return DraggableWidget(
               onOffsetUpdate: onOffsetUpdated,
               initialOffset: _getInitialOffset(context, widget, focusNode),

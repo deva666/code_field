@@ -145,7 +145,7 @@ class _CodeFieldState extends State<CodeField> {
 
   void createAutoComplate() {
     widget.controller.autoComplete = widget.autoComplete;
-    widget.autoComplete?.show(context, widget, _focusNode!);
+    widget.autoComplete?.show(context, widget, _focusNode!, hideSnippetSelector);
     _codeScroll?.addListener(hideAllPopups);
   }
 

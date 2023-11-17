@@ -8,8 +8,19 @@ class CodeSnippet {
   final String snippetId;
   final String title;
   final String snippet;
+  final int offsetSelection;
+  final int selectionLength;
+  final int offsetLine;
+  final bool startsOnNewLine;
 
-  CodeSnippet({required this.snippetId, required this.title, required this.snippet});
+  CodeSnippet(
+      {required this.snippetId,
+      required this.title,
+      required this.snippet,
+      required this.offsetSelection,
+      required this.offsetLine,
+      this.startsOnNewLine = true,
+      this.selectionLength = 0});
 }
 
 class CodeSnippetSelector {
@@ -45,12 +56,13 @@ class CodeSnippetSelector {
   /// the panel offset.
   OffsetGetter? initialOffset;
   Function(Offset) onOffsetUpdated;
-  StreamController streamController = StreamController.broadcast();
+  StreamController streamController;
   Stream get stream => streamController.stream;
 
   bool get active => panelOverlay != null;
 
   CodeSnippetSelector({
+    required this.streamController,
     required this.optionsBuilder,
     required this.itemBuilder,
     // required this.streamController,
@@ -123,35 +135,51 @@ class CodeSnippetSelector {
 
   /// write the text to code field.
   void write(CodeSnippet snippet) {
-    var offset = widget.controller.selection.baseOffset;
-    widget.controller.insertStr(snippet.snippet);
+    final offsetBefore = widget.controller.selection.baseOffset;
+    final indentCount = getIndentCount();
+    final isCurrentLineEmpty = isLineEmpty();
+    final snippetText = isCurrentLineEmpty ? snippet.snippet : '\n${snippet.snippet}';
+    final snippetLines = snippetText.split('\n');
+    final indentedLines = <String>[];
+    final offsetLine = isCurrentLineEmpty ? snippet.offsetLine : snippet.offsetLine + 1;
+    var addedOffset = isCurrentLineEmpty ? 0 : 1;
+    for (var i = 0; i < snippetLines.length; i++) {
+      if (i == 0) {
+        indentedLines.add(snippetLines[i]);
+      } else {
+        indentedLines.add("{' ' * indentCount}${snippetLines[i]}");
+        if (i <= offsetLine) {
+          addedOffset += indentCount;
+        }
+      }
+    }
+    final indentedSnippet = snippetLines.mapIndexed((i, e) => i == 0 ? e : "${' ' * indentCount}$e").join('\n');
+    widget.controller.insertStr(indentedSnippet);
+    final newOffset = offsetBefore + snippet.offsetSelection + addedOffset;
+    widget.controller.selection =
+        TextSelection(baseOffset: newOffset, extentOffset: newOffset + snippet.selectionLength);
     widget.onChanged?.call(widget.controller.text);
     hide();
   }
 
-  /// get the repeat count of pre word and tip word.
-  static int repeatCount(String text, String text2) {
-    text = text.toLowerCase();
-    text2 = text2.toLowerCase();
-    var same = 0;
-    while (text2.isNotEmpty) {
-      if (text.endsWith(text2)) {
-        return same += text2.length;
-      }
-      text2 = text2.substring(0, text2.length - 1);
+  int getIndentCount() {
+    final offset = widget.controller.selection.baseOffset;
+    final lineStart = widget.controller.lineStart(offset);
+    final lineEnd = widget.controller.lineEnd(offset);
+    var current = lineStart;
+    var count = 0;
+    while (current < lineEnd && widget.controller.text[current] == ' ') {
+      current++;
+      count++;
     }
-    return same;
+    return count;
   }
 
-  Offset _editorOffset(ScrollController codeScroll, GlobalKey editorKey) {
-    final box = editorKey.currentContext!.findRenderObject() as RenderBox?;
-    var editorOffset = box?.localToGlobal(Offset.zero);
-    if (editorOffset != null) {
-      var fixedOffset = editorOffset;
-      fixedOffset += Offset(0, codeScroll.offset);
-      return fixedOffset;
-    }
-    return Offset.zero;
+  bool isLineEmpty() {
+    final offset = widget.controller.selection.baseOffset;
+    final lineStart = widget.controller.lineStart(offset);
+    final lineEnd = widget.controller.lineEnd(offset);
+    return !RegExp(r'[^\s\\]').hasMatch(widget.controller.text.substring(lineStart, lineEnd));
   }
 
   Offset _getInitialOffset(BuildContext context, CodeField widget, FocusNode focusNode) {
@@ -183,7 +211,7 @@ class CodeSnippetSelector {
       textDirection: TextDirection.ltr,
       text: TextSpan(style: textStyle, text: text),
     )..layout();
-    
+
     var cursorBefore = s.substring(0, widget.controller.selection.baseOffset);
     TextPainter hpainter = TextPainter(
       textDirection: TextDirection.ltr,
@@ -220,13 +248,23 @@ class CodeSnippetSelector {
   /// the style widget of tip panel.
   Widget background(BuildContext context, Widget content) {
     return DecoratedBox(
-        decoration: BoxDecoration(
+      decoration: BoxDecoration(
           border: Border.all(color: Theme.of(context).colorScheme.outline),
-            color: Theme.of(context).colorScheme.tertiaryContainer, borderRadius: BorderRadius.circular(8)),
-        child:  Padding(
-          padding: const EdgeInsets.all(2),
-          child: content,
-        ),
-        );
+          color: Theme.of(context).colorScheme.tertiaryContainer,
+          borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: content,
+      ),
+    );
+  }
+}
+
+extension IterableExt<T> on Iterable<T> {
+  Iterable<R> mapIndexed<R>(R Function(int index, T element) convert) sync* {
+    var index = 0;
+    for (var element in this) {
+      yield convert(index++, element);
+    }
   }
 }
