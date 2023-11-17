@@ -5,7 +5,6 @@ import 'package:highlighting/highlighting.dart';
 import '../../code_text_field.dart';
 
 class CodeSnippet {
-  final String snippetId;
   final String title;
   final String snippet;
   final int offsetSelection;
@@ -14,8 +13,7 @@ class CodeSnippet {
   final bool startsOnNewLine;
 
   CodeSnippet(
-      {required this.snippetId,
-      required this.title,
+      {required this.title,
       required this.snippet,
       required this.offsetSelection,
       required this.offsetLine,
@@ -65,10 +63,9 @@ class CodeSnippetSelector {
     required this.streamController,
     required this.optionsBuilder,
     required this.itemBuilder,
-    // required this.streamController,
     required this.onOffsetUpdated,
     this.initialOffset,
-    this.constraints = const BoxConstraints(maxHeight: 300, maxWidth: 240),
+    this.constraints = const BoxConstraints(maxHeight: 400, maxWidth: 200),
     this.backgroundColor,
   });
 
@@ -128,7 +125,19 @@ class CodeSnippetSelector {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: options.map((tip) => itemBuilder(tip, current == options.indexOf(tip), write)).toList(),
+        children: [ 
+          const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text('Insert Code Snippet'),
+          ),
+          const SizedBox(
+            width: 96,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8),
+              child: Divider(),
+            ),
+          ),
+          ...options.map((tip) => itemBuilder(tip, current == options.indexOf(tip), write))],
       ),
     );
   }
@@ -187,6 +196,8 @@ class CodeSnippetSelector {
     if (inital != null) {
       return inital;
     }
+    final screenSize = MediaQuery.of(context).size;
+    return Offset(screenSize.width / 2, 160);
     final offset = cursorOffset(context, widget, focusNode);
     final pinToBottom = _pinToBottom(offset, context);
     if (pinToBottom) {
