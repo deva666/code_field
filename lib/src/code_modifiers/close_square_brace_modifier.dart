@@ -4,7 +4,7 @@ import '../code_field/editor_params.dart';
 import 'code_modifier.dart';
 
 class CloseSquareBraceModifier extends CodeModifier {
-  const CloseSquareBraceModifier() : super('[]');
+  const CloseSquareBraceModifier() : super('[');
 
   @override
   TextEditingValue? updateString(
