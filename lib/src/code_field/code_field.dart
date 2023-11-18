@@ -324,7 +324,7 @@ class _CodeFieldState extends State<CodeField> {
       smartQuotesType: widget.smartQuotesType,
       focusNode: _focusNode,
       onTap: () {
-        widget.autoComplete?.hide();
+        hideAllPopups();
         widget.onTap?.call();
       },
       scrollPadding: widget.padding,
