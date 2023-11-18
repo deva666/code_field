@@ -10,6 +10,7 @@ class IndentModifier extends CodeModifier {
 
   const IndentModifier({
     this.handleBrackets = true,
+    super.priority = 100
   }) : super('\n');
 
   @override

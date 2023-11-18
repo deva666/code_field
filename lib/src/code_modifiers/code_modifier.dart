@@ -5,7 +5,9 @@ import '../code_field/editor_params.dart';
 abstract class CodeModifier {
   final String char;
 
-  const CodeModifier(this.char);
+  final int priority;
+  
+  const CodeModifier(this.char, {this.priority = 1});
 
   // Helper to insert [str] in [text] between [start] and [end]
   TextEditingValue replace(String text, int start, int end, String str) {

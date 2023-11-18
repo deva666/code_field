@@ -3,16 +3,21 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:highlighting/highlighting.dart';
+import 'package:highlighting/languages/python.dart';
 import 'package:highlighting/languages/xml.dart';
 import 'package:highlighting/src/language.dart';
 
 import '../code_modifiers/close_block_code_modifier.dart';
+import '../code_modifiers/close_brace_modifier.dart';
+import '../code_modifiers/close_curly_brace_modifier.dart';
+import '../code_modifiers/close_square_brace_modifier.dart';
 import '../code_modifiers/code_modifier.dart';
 import '../code_modifiers/indent_code_modifier.dart';
 import '../code_modifiers/ios_close_quoutes_modifler.dart';
 import '../code_modifiers/ios_close_single_quoute_modifier.dart';
 import '../code_modifiers/ios_open_quotes_modifier.dart';
 import '../code_modifiers/ios_opens_single_quote_modifier.dart';
+import '../code_modifiers/open_indent_modifier.dart';
 import '../code_modifiers/tab_code_modifier.dart';
 import '../code_theme/code_theme.dart';
 import '../code_theme/code_theme_data.dart';
@@ -55,11 +60,11 @@ class CodeController extends TextEditingController {
   final EditorParams params;
 
   /// A list of code modifiers to dynamically update the code upon certain keystrokes
-  final List<CodeModifier> modifiers;
+  List<CodeModifier> modifiers = [];
 
-  /* Computed members */
+  bool autoCloseBraces;
   String _languageId = '';
-  final _modifierMap = <String, CodeModifier>{};
+  final _modifierMap = <String, List<CodeModifier>>{};
   final _styleList = <TextStyle>[];
   RegExp? _styleRegExp;
 
@@ -71,22 +76,10 @@ class CodeController extends TextEditingController {
     this.patternMap,
     this.stringMap,
     this.params = const EditorParams(),
-    this.modifiers = const [
-      IndentModifier(),
-      CloseBlockModifier(),
-      TabModifier(),
-      IOSOpenQuoutesModifier(),
-      IOSCloseQuoutesModifier(),
-      IOSOpenSingleQuouteModifier(),
-      IOSCloseSingleQuouteModifier()
-    ],
+    this.autoCloseBraces = false,
   }) {
     this.language = language;
-
-    // Create modifier map
-    for (final el in modifiers) {
-      _modifierMap[el.char] = el;
-    }
+    setCodeModifiers();
 
     // Build styleRegExp
     final patternList = <String>[];
@@ -99,6 +92,38 @@ class CodeController extends TextEditingController {
       _styleList.addAll(patternMap!.values);
     }
     _styleRegExp = RegExp(patternList.join('|'), multiLine: true);
+  }
+
+  void setCodeModifiers() {
+    modifiers = [
+      const IndentModifier(),
+      const CloseBlockModifier(),
+      const TabModifier(),
+      const IOSOpenQuoutesModifier(),
+      const IOSCloseQuoutesModifier(),
+      const IOSOpenSingleQuouteModifier(),
+      const IOSCloseSingleQuouteModifier(),
+      if (autoCloseBraces) const CloseBraceModifier(),
+      if (autoCloseBraces) const CloseCurlyBraceModifier(),
+      if (autoCloseBraces) const CloseSquareBraceModifier()
+    ];
+    if (language == python) {
+      modifiers.add(const OpenIndentModifier());
+    }
+
+    // Create modifier map
+    _modifierMap.clear();
+    for (final el in modifiers) {
+      if (_modifierMap[el.char] == null) {
+        _modifierMap[el.char] = <CodeModifier>[];
+      }
+      _modifierMap[el.char]!.add(el);
+    }
+  }
+
+  void setAutoCloseBraces(bool enabled) {
+    autoCloseBraces = enabled;
+    setCodeModifiers();
   }
 
   /// Sets a specific cursor position in the text
@@ -424,15 +449,20 @@ class CodeController extends TextEditingController {
 
     if (loc != null) {
       final char = newValue.text[loc];
-      final modifier = _modifierMap[char];
-      final val = modifier?.updateString(super.text, selection, params);
-
-      if (val != null) {
-        // Update newValue
-        newValue = newValue.copyWith(
-          text: val.text,
-          selection: val.selection,
-        );
+      final modifiers = _modifierMap[char];
+      if (modifiers != null) {
+        modifiers.sort((a,b) => a.priority.compareTo(b.priority));
+        for (final modifier in modifiers) {
+          final val = modifier.updateString(super.text, selection, params);
+          if (val != null) {
+            // Update newValue
+            newValue = newValue.copyWith(
+              text: val.text,
+              selection: val.selection,
+            );
+            break;
+          }
+        }
       }
     }
     super.value = newValue;
