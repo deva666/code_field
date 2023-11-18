@@ -8,10 +8,7 @@ import 'code_modifier.dart';
 class IndentModifier extends CodeModifier {
   final bool handleBrackets;
 
-  const IndentModifier({
-    this.handleBrackets = true,
-    super.priority = 100
-  }) : super('\n');
+  const IndentModifier({this.handleBrackets = true, super.priority = 100}) : super('\n');
 
   @override
   TextEditingValue? updateString(
@@ -44,7 +41,21 @@ class IndentModifier extends CodeModifier {
       spacesCount += params.tabSpaces;
     }
 
+    if (sel.end <= text.length - 1 && text[sel.end] == '}') {
+      final insertWithBrace = '\n${' ' * spacesCount}\n${' ' * (spacesCount - params.tabSpaces)}';
+      return replaceWithSelection(text, sel.start, sel.end, insertWithBrace, spacesCount + 1);
+    }
     final insert = '\n${' ' * spacesCount}';
     return replace(text, sel.start, sel.end, insert);
+  }
+
+    TextEditingValue replaceWithSelection(String text, int start, int end, String str, int offset ) {
+    return TextEditingValue(
+      text: text.replaceRange(start, end, str),
+      selection: TextSelection(
+        baseOffset: start + offset,
+        extentOffset: start + offset,
+      ),
+    );
   }
 }
