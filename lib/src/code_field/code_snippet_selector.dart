@@ -147,11 +147,11 @@ class CodeSnippetSelector {
     final offsetBefore = widget.controller.selection.baseOffset;
     final indentCount = getIndentCount();
     final isCurrentLineEmpty = isLineEmpty();
-    final snippetText = isCurrentLineEmpty ? snippet.snippet : '\n${snippet.snippet}';
+    final snippetText = isCurrentLineEmpty || !snippet.startsOnNewLine ? snippet.snippet : '\n${snippet.snippet}';
     final snippetLines = snippetText.split('\n');
     final indentedLines = <String>[];
-    final offsetLine = isCurrentLineEmpty ? snippet.offsetLine : snippet.offsetLine + 1;
-    var addedOffset = isCurrentLineEmpty ? 0 : 1;
+    final offsetLine = isCurrentLineEmpty || !snippet.startsOnNewLine ? snippet.offsetLine : snippet.offsetLine + 1;
+    var addedOffset = isCurrentLineEmpty || !snippet.startsOnNewLine ? 0 : 1;
     for (var i = 0; i < snippetLines.length; i++) {
       if (i == 0) {
         indentedLines.add(snippetLines[i]);
