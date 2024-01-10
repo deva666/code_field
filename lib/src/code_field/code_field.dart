@@ -122,6 +122,7 @@ class _CodeFieldState extends State<CodeField> {
   ScrollController? _numberScroll;
   ScrollController? _codeScroll;
   LineNumberController? _numberController;
+  OverlayEntry? _statementOverlay;
 
   StreamSubscription<bool>? _keyboardVisibilitySubscription;
   FocusNode? _focusNode;
@@ -210,15 +211,16 @@ class _CodeFieldState extends State<CodeField> {
     });
 
     setState(() {});
-    WidgetsBinding.instance.addPostFrameCallback(
-      (timeStamp) {
-        buildOverlay();
-      },
-    );
+    if (widget.controller.statementOverlayEnabled) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (timeStamp) {
+          buildStatementOverlay();
+        },
+      );
+    }
   }
 
-  OverlayEntry? _statementOverlay;
-  Future<void> buildOverlay() async {
+  Future<void> buildStatementOverlay() async {
     if (_focusNode?.context == null) {
       _statementOverlay?.remove();
       _statementOverlay = null;
@@ -274,18 +276,18 @@ class _CodeFieldState extends State<CodeField> {
   }
 
   double longestLineLength(TextStyle textStyle, String text) {
-    double longest = 0;
     final lines = text.split('\n');
+    var line = '';
     for (var l in lines) {
-      final painter = TextPainter(
-        textDirection: TextDirection.ltr,
-        text: TextSpan(style: textStyle, text: l),
-      )..layout();
-      if (painter.size.width > longest) {
-        longest = painter.size.width;
+      if (l.length > line.length) {
+        line = l;
       }
     }
-    return longest;
+    final painter = TextPainter(
+      textDirection: TextDirection.ltr,
+      text: TextSpan(style: textStyle, text: line),
+    )..layout();
+      return painter.size.width;
   }
 
   int lineNumber(int selectionBase) {
@@ -303,7 +305,11 @@ class _CodeFieldState extends State<CodeField> {
     if (positions.isEmpty) {
       return null;
     }
-    final cursorPos = widget.controller.selection.baseOffset;
+    var cursorPos = widget.controller.selection.baseOffset;
+    print(widget.controller.text.codeUnitAt(cursorPos));
+    if (cursorPos > 0 && widget.controller.text[cursorPos] == ' ' || widget.controller.text[cursorPos] == '\n') {
+      cursorPos -= 1; //  remove so we can select if cursor just outside of statement
+    }
     for (var pos in positions) {
       final s = widget.controller.text;
       var start = pos.start;
