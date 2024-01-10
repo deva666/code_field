@@ -7,6 +7,7 @@ import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 import '../code_theme/code_theme.dart';
 import '../line_numbers/line_number_controller.dart';
 import '../line_numbers/line_number_style.dart';
+import '../query/query_analyzer.dart';
 import 'code_auto_complete.dart';
 import 'code_controller.dart';
 import 'code_snippet_selector.dart';
@@ -73,6 +74,7 @@ class CodeField extends StatefulWidget {
   final CodeAutoComplete? autoComplete;
   final CodeSnippetSelector? codeSnippetSelector;
   final UndoHistoryController? undoHistoryController;
+  final QueryAnalyzer? queryAnalyzer;
 
   const CodeField({
     super.key,
@@ -105,6 +107,7 @@ class CodeField extends StatefulWidget {
     this.autoComplete,
     this.undoHistoryController,
     this.codeSnippetSelector,
+    this.queryAnalyzer,
   });
 
   @override
@@ -112,6 +115,7 @@ class CodeField extends StatefulWidget {
 }
 
 class _CodeFieldState extends State<CodeField> {
+  final _editorKey = GlobalKey();
   // Add a controller
   LinkedScrollControllerGroup? _controllers;
   ScrollController? _numberScroll;
@@ -134,10 +138,20 @@ class _CodeFieldState extends State<CodeField> {
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode!.onKey = _onKey;
     _focusNode!.attach(context, onKey: _onKey);
-    
+    _focusNode!.addListener(() { 
+      if (!_focusNode!.hasFocus) {
+        _statementOverlay?.remove();
+        _statementOverlay = null;
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       createAutoComplate();
       createCodeSnippetSelector();
+    });
+    _codeScroll?.addListener(() {
+      _statementOverlay?.remove();
+      _statementOverlay = null;
     });
 
     _onTextChanged();
@@ -195,6 +209,101 @@ class _CodeFieldState extends State<CodeField> {
     });
 
     setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback(
+      (timeStamp) {
+        buildOverlay();
+      },
+    );
+  }
+
+  OverlayEntry? _statementOverlay;
+  Future<void> buildOverlay() async {
+    if (_focusNode?.context == null) {
+      _statementOverlay?.remove();
+      _statementOverlay = null;
+      return;
+    }
+    final statmentPosition = await currentStatement();
+    if (statmentPosition == null) {
+      _statementOverlay?.remove();
+      _statementOverlay = null;
+      return;
+    }
+    TextStyle textStyle = widget.textStyle ?? const TextStyle();
+    // textStyle = textStyle.copyWith(
+    //   fontSize: textStyle.fontSize ?? 16,
+    // );
+    final fontSize = textStyle.fontSize ?? 16;
+    TextPainter painter = TextPainter(
+      textDirection: TextDirection.ltr,
+      text: TextSpan(style: textStyle, text: widget.controller.text),
+    )..layout();
+    final statement = widget.controller.text.substring(statmentPosition.baseOffset, statmentPosition.extentOffset);
+    final lineCount = RegExp('\n').allMatches(statement).toList().length;
+    final textBoxes = painter.getBoxesForSelection(statmentPosition);
+    if (textBoxes.isNotEmpty) {
+      final textBox = textBoxes[0];
+      final top = textBox.top +
+          _focusNode!.offset.dy +
+          ((fontSize / 2) * lineNumber(statmentPosition.baseOffset)) -
+          _codeScroll!.offset;
+
+      _statementOverlay?.remove();
+      _statementOverlay = null;
+      _statementOverlay = OverlayEntry(builder: (context) {
+        return Positioned(
+            left: _focusNode!.offset.dx + textBox.left - 2,
+            top: top - 10,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(border: Border.all(color: Colors.white)),
+                width: textBox.toRect().width + 24,
+                height: textBox.toRect().height + 12 + lineCount * 24,
+              ),
+            ));
+      });
+      final e = _statementOverlay;
+      if (e == null) {
+        return;
+      }
+      Overlay.of(context).insert(e);
+    } else {
+      _statementOverlay?.remove();
+      _statementOverlay = null;
+    }
+  }
+
+  int lineNumber(int selectionBase) {
+    final firstPart = widget.controller.text.substring(0, selectionBase);
+    final newLines = RegExp(r'\n').allMatches(firstPart).toList();
+    return newLines.length + 1;
+  }
+
+  Future<TextSelection?> currentStatement() async {
+    final queryAnalyzer = widget.queryAnalyzer;
+    if (queryAnalyzer == null) {
+      return null;
+    }
+    final positions = await queryAnalyzer.statementPositionsAsync(widget.controller.text);
+    if (positions.isEmpty) {
+      return null;
+    }
+    final cursorPos = widget.controller.selection.baseOffset;
+    for (var pos in positions) {
+      final s = widget.controller.text;
+      var start = pos.start;
+      final end = pos.start + pos.len;
+      if (cursorPos >= start && cursorPos <= end) {
+        var i = start;
+        var count = 0;
+        while(i < end && (s[i] == ' ' || s[i] == '\n')) {
+          count++;
+          i++;
+        }
+        return TextSelection(baseOffset: start + count, extentOffset: end);
+      }
+    }
+    return null;
   }
 
   // Wrap the codeField in a horizontal scrollView
@@ -219,7 +328,7 @@ class _CodeFieldState extends State<CodeField> {
               child: Text(longestLine, style: textStyle),
             ), // Add extra padding
           ),
-          widget.expands ? Expanded(child: codeField) : codeField,
+          widget.expands ? Expanded(key: _editorKey, child: codeField) : codeField,
         ],
       ),
     );
