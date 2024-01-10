@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
@@ -138,7 +139,7 @@ class _CodeFieldState extends State<CodeField> {
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode!.onKey = _onKey;
     _focusNode!.attach(context, onKey: _onKey);
-    _focusNode!.addListener(() { 
+    _focusNode!.addListener(() {
       if (!_focusNode!.hasFocus) {
         _statementOverlay?.remove();
         _statementOverlay = null;
@@ -230,19 +231,18 @@ class _CodeFieldState extends State<CodeField> {
       return;
     }
     TextStyle textStyle = widget.textStyle ?? const TextStyle();
-    // textStyle = textStyle.copyWith(
-    //   fontSize: textStyle.fontSize ?? 16,
-    // );
     final fontSize = textStyle.fontSize ?? 16;
     TextPainter painter = TextPainter(
       textDirection: TextDirection.ltr,
       text: TextSpan(style: textStyle, text: widget.controller.text),
     )..layout();
     final statement = widget.controller.text.substring(statmentPosition.baseOffset, statmentPosition.extentOffset);
+    final longestLineWidth = longestLineLength(textStyle, statement) + 24;
     final lineCount = RegExp('\n').allMatches(statement).toList().length;
-    final textBoxes = painter.getBoxesForSelection(statmentPosition);
+    final textBoxes = painter.getBoxesForSelection(statmentPosition, boxWidthStyle: BoxWidthStyle.max);
     if (textBoxes.isNotEmpty) {
       final textBox = textBoxes[0];
+      final textBoxWidth = textBox.toRect().width + 24;
       final top = textBox.top +
           _focusNode!.offset.dy +
           ((fontSize / 2) * lineNumber(statmentPosition.baseOffset)) -
@@ -257,7 +257,7 @@ class _CodeFieldState extends State<CodeField> {
             child: IgnorePointer(
               child: Container(
                 decoration: BoxDecoration(border: Border.all(color: Colors.white)),
-                width: textBox.toRect().width + 24,
+                width: max(longestLineWidth, textBoxWidth),
                 height: textBox.toRect().height + 12 + lineCount * 24,
               ),
             ));
@@ -271,6 +271,21 @@ class _CodeFieldState extends State<CodeField> {
       _statementOverlay?.remove();
       _statementOverlay = null;
     }
+  }
+
+  double longestLineLength(TextStyle textStyle, String text) {
+    double longest = 0;
+    final lines = text.split('\n');
+    for (var l in lines) {
+      final painter = TextPainter(
+        textDirection: TextDirection.ltr,
+        text: TextSpan(style: textStyle, text: l),
+      )..layout();
+      if (painter.size.width > longest) {
+        longest = painter.size.width;
+      }
+    }
+    return longest;
   }
 
   int lineNumber(int selectionBase) {
@@ -296,7 +311,7 @@ class _CodeFieldState extends State<CodeField> {
       if (cursorPos >= start && cursorPos <= end) {
         var i = start;
         var count = 0;
-        while(i < end && (s[i] == ' ' || s[i] == '\n')) {
+        while (i < end && (s[i] == ' ' || s[i] == '\n')) {
           count++;
           i++;
         }
