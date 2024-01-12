@@ -243,6 +243,7 @@ class _CodeFieldState extends State<CodeField> {
     }
     TextStyle textStyle = widget.textStyle ?? const TextStyle();
     final fontSize = textStyle.fontSize ?? 16;
+    final theme = Theme.of(context);
     TextPainter painter = TextPainter(
       textDirection: TextDirection.ltr,
       text: TextSpan(style: textStyle, text: widget.controller.text),
@@ -268,7 +269,8 @@ class _CodeFieldState extends State<CodeField> {
             top: top - 10,
             child: IgnorePointer(
               child: Container(
-                decoration: BoxDecoration(border: Border.all(color: Colors.white)),
+                decoration: BoxDecoration(
+                    border: Border.all(color: theme.brightness == Brightness.dark ? Colors.white : Colors.black)),
                 width: max(longestLineWidth, textBoxWidth),
                 height: textBox.toRect().height + 12 + lineCount * 24,
               ),
