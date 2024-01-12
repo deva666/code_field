@@ -80,7 +80,6 @@ class CodeController extends TextEditingController {
     this.stringMap,
     this.params = const EditorParams(),
     this.autoCloseBraces = false,
-    this.statementOverlayEnabled = true,
   }) {
     this.language = language;
     setCodeModifiers();

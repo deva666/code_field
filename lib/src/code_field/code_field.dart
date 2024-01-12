@@ -151,13 +151,13 @@ class _CodeFieldState extends State<CodeField> {
       createAutoComplate();
       createCodeSnippetSelector();
 
-      _codeScroll?.position.isScrollingNotifier.addListener(() {
-        if (_codeScroll?.position.isScrollingNotifier.value == false && _focusNode?.hasFocus == true) {
-          WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-            buildStatementOverlay();
-          });
-        }
-      });
+      // _codeScroll?.position.isScrollingNotifier.addListener(() {
+      //   if (_codeScroll?.position.isScrollingNotifier.value == false && _focusNode?.hasFocus == true) {
+      //     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      //       buildStatementOverlay();
+      //     });
+      //   }
+      // });
     });
 
     _onTextChanged();
@@ -251,13 +251,10 @@ class _CodeFieldState extends State<CodeField> {
     final statement = widget.controller.text.substring(statmentPosition.baseOffset, statmentPosition.extentOffset);
     final longestLineWidth = longestLineLength(textStyle, statement) + 24;
     final lineCount = RegExp('\n').allMatches(statement).toList().length + 1;
-    print('line count $lineCount');
     final lineHeight = painter.preferredLineHeight;
-    print('lineHeight $lineHeight');
     final textBoxes = painter.getBoxesForSelection(statmentPosition, boxWidthStyle: BoxWidthStyle.max);
     if (textBoxes.isNotEmpty) {
       final textBox = textBoxes[0];
-    print('rect height ${textBox.toRect().height}');
       final textBoxWidth = textBox.toRect().width + 24;
       final top = textBox.top +
           _focusNode!.offset.dy +
