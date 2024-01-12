@@ -251,6 +251,7 @@ class _CodeFieldState extends State<CodeField> {
     final statement = widget.controller.text.substring(statmentPosition.baseOffset, statmentPosition.extentOffset);
     final longestLineWidth = longestLineLength(textStyle, statement) + 24;
     final lineCount = RegExp('\n').allMatches(statement).toList().length;
+    final lineHeight = painter.preferredLineHeight;
     final textBoxes = painter.getBoxesForSelection(statmentPosition, boxWidthStyle: BoxWidthStyle.max);
     if (textBoxes.isNotEmpty) {
       final textBox = textBoxes[0];
@@ -266,13 +267,13 @@ class _CodeFieldState extends State<CodeField> {
       _statementOverlay = OverlayEntry(builder: (context) {
         return Positioned(
             left: _focusNode!.offset.dx + textBox.left - 2,
-            top: top - 10,
+            top: top - lineHeight * 0.6,
             child: IgnorePointer(
               child: Container(
                 decoration: BoxDecoration(
                     border: Border.all(color: theme.brightness == Brightness.dark ? Colors.white : Colors.black)),
                 width: max(longestLineWidth, textBoxWidth),
-                height: textBox.toRect().height + 12 + lineCount * 24,
+                height: textBox.toRect().height + lineHeight*0.7 + (lineCount <= 1 ? 0 : (lineCount + 1) * lineHeight ),
               ),
             ));
       });
