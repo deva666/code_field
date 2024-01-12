@@ -250,11 +250,14 @@ class _CodeFieldState extends State<CodeField> {
     )..layout();
     final statement = widget.controller.text.substring(statmentPosition.baseOffset, statmentPosition.extentOffset);
     final longestLineWidth = longestLineLength(textStyle, statement) + 24;
-    final lineCount = RegExp('\n').allMatches(statement).toList().length;
+    final lineCount = RegExp('\n').allMatches(statement).toList().length + 1;
+    print('line count $lineCount');
     final lineHeight = painter.preferredLineHeight;
+    print('lineHeight $lineHeight');
     final textBoxes = painter.getBoxesForSelection(statmentPosition, boxWidthStyle: BoxWidthStyle.max);
     if (textBoxes.isNotEmpty) {
       final textBox = textBoxes[0];
+    print('rect height ${textBox.toRect().height}');
       final textBoxWidth = textBox.toRect().width + 24;
       final top = textBox.top +
           _focusNode!.offset.dy +
@@ -273,7 +276,7 @@ class _CodeFieldState extends State<CodeField> {
                 decoration: BoxDecoration(
                     border: Border.all(color: theme.brightness == Brightness.dark ? Colors.white : Colors.black)),
                 width: max(longestLineWidth, textBoxWidth),
-                height: textBox.toRect().height + lineHeight*0.7 + (lineCount <= 1 ? 0 : (lineCount + 1) * lineHeight ),
+                height: textBox.toRect().height + lineHeight * 0.7 + (lineCount <= 1 ? 0 : (lineCount -1) * (lineHeight + lineHeight /2)),
               ),
             ));
       });
