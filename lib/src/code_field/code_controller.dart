@@ -7,6 +7,7 @@ import 'package:highlighting/languages/python.dart';
 import 'package:highlighting/languages/xml.dart';
 import 'package:highlighting/src/language.dart';
 
+import '../../code_text_field.dart';
 import '../code_modifiers/close_block_code_modifier.dart';
 import '../code_modifiers/close_brace_modifier.dart';
 import '../code_modifiers/close_curly_brace_modifier.dart';
@@ -70,6 +71,8 @@ class CodeController extends TextEditingController {
 
   String get languageId => _languageId;
 
+  bool statementOverlayEnabled = true;
+
   CodeController({
     super.text,
     Language? language,
@@ -77,6 +80,7 @@ class CodeController extends TextEditingController {
     this.stringMap,
     this.params = const EditorParams(),
     this.autoCloseBraces = false,
+    this.statementOverlayEnabled = true,
   }) {
     this.language = language;
     setCodeModifiers();
@@ -451,7 +455,7 @@ class CodeController extends TextEditingController {
       final char = newValue.text[loc];
       final modifiers = _modifierMap[char];
       if (modifiers != null) {
-        modifiers.sort((a,b) => a.priority.compareTo(b.priority));
+        modifiers.sort((a, b) => a.priority.compareTo(b.priority));
         for (final modifier in modifiers) {
           final val = modifier.updateString(super.text, selection, params);
           if (val != null) {

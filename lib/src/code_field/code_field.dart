@@ -9,6 +9,7 @@ import '../code_theme/code_theme.dart';
 import '../line_numbers/line_number_controller.dart';
 import '../line_numbers/line_number_style.dart';
 import '../query/query_analyzer.dart';
+import '../statements/selected_statement_widget.dart';
 import 'code_auto_complete.dart';
 import 'code_controller.dart';
 import 'code_snippet_selector.dart';
@@ -142,21 +143,30 @@ class _CodeFieldState extends State<CodeField> {
     _focusNode!.attach(context, onKey: _onKey);
     _focusNode!.addListener(() {
       if (!_focusNode!.hasFocus) {
-        _statementOverlay?.remove();
-        _statementOverlay = null;
+        removeStatmentOverlay();
       }
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       createAutoComplate();
       createCodeSnippetSelector();
-    });
-    _codeScroll?.addListener(() {
-      _statementOverlay?.remove();
-      _statementOverlay = null;
+
+      _codeScroll?.position.isScrollingNotifier.addListener(() {
+        if (_codeScroll?.position.isScrollingNotifier.value == false && _focusNode?.hasFocus == true) {
+          WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+            buildStatementOverlay();
+          });
+        }
+      });
     });
 
     _onTextChanged();
+  }
+
+  void removeStatmentOverlay() {
+    _statementOverlay?.remove();
+    _statementOverlay = null;
+    SelectedStatementWidget.setCurrentStatement(context, null);
   }
 
   void createAutoComplate() {
@@ -213,7 +223,8 @@ class _CodeFieldState extends State<CodeField> {
     setState(() {});
     if (widget.controller.statementOverlayEnabled) {
       WidgetsBinding.instance.addPostFrameCallback(
-        (timeStamp) {
+        (timeStamp) async {
+          await Future.delayed(const Duration(milliseconds: 350));
           buildStatementOverlay();
         },
       );
@@ -222,14 +233,12 @@ class _CodeFieldState extends State<CodeField> {
 
   Future<void> buildStatementOverlay() async {
     if (_focusNode?.context == null) {
-      _statementOverlay?.remove();
-      _statementOverlay = null;
+      removeStatmentOverlay();
       return;
     }
     final statmentPosition = await currentStatement();
     if (statmentPosition == null) {
-      _statementOverlay?.remove();
-      _statementOverlay = null;
+      removeStatmentOverlay();
       return;
     }
     TextStyle textStyle = widget.textStyle ?? const TextStyle();
@@ -250,6 +259,7 @@ class _CodeFieldState extends State<CodeField> {
           ((fontSize / 2) * lineNumber(statmentPosition.baseOffset)) -
           _codeScroll!.offset;
 
+      SelectedStatementWidget.setCurrentStatement(context, statement);
       _statementOverlay?.remove();
       _statementOverlay = null;
       _statementOverlay = OverlayEntry(builder: (context) {
@@ -270,8 +280,7 @@ class _CodeFieldState extends State<CodeField> {
       }
       Overlay.of(context).insert(e);
     } else {
-      _statementOverlay?.remove();
-      _statementOverlay = null;
+      removeStatmentOverlay();
     }
   }
 
@@ -287,7 +296,7 @@ class _CodeFieldState extends State<CodeField> {
       textDirection: TextDirection.ltr,
       text: TextSpan(style: textStyle, text: line),
     )..layout();
-      return painter.size.width;
+    return painter.size.width;
   }
 
   int lineNumber(int selectionBase) {
@@ -306,9 +315,12 @@ class _CodeFieldState extends State<CodeField> {
       return null;
     }
     var cursorPos = widget.controller.selection.baseOffset;
-    print(widget.controller.text.codeUnitAt(cursorPos));
-    if (cursorPos > 0 && widget.controller.text[cursorPos] == ' ' || widget.controller.text[cursorPos] == '\n') {
-      cursorPos -= 1; //  remove so we can select if cursor just outside of statement
+    if (cursorPos < 0) {
+      return null;
+    }
+    if (cursorPos > 0 && cursorPos < widget.controller.text.length && widget.controller.text[cursorPos] == ' ' ||
+        widget.controller.text[cursorPos] == '\n') {
+      cursorPos -= 1; //  go back one so we can select if cursor just outside of statement
     }
     for (var pos in positions) {
       final s = widget.controller.text;

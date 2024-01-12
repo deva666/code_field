@@ -11,3 +11,5 @@ export 'src/code_theme/code_theme.dart';
 export 'src/code_theme/code_theme_data.dart';
 export 'src/line_numbers/line_number_controller.dart';
 export 'src/line_numbers/line_number_style.dart';
+export 'src/query/query_analyzer.dart';
+export 'src/statements/selected_statement_widget.dart';
