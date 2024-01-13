@@ -547,8 +547,8 @@ class Rectangle extends CustomPainter {
       Rect.fromLTWH(0, 0, width, height),
       Paint()
         ..color = color
+        ..strokeWidth = 0.5
         ..style = PaintingStyle.stroke
-        ..blendMode = BlendMode.modulate
         ..filterQuality = FilterQuality.high
         ..strokeCap = StrokeCap.round,
     );
@@ -556,6 +556,6 @@ class Rectangle extends CustomPainter {
 
   @override
   bool shouldRepaint(Rectangle oldDelegate) {
-    return false;
+    return true;
   }
 }
