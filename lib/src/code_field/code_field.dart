@@ -242,23 +242,22 @@ class _CodeFieldState extends State<CodeField> {
       return;
     }
     TextStyle textStyle = widget.textStyle ?? const TextStyle();
-    final fontSize = textStyle.fontSize ?? 16;
     final theme = Theme.of(context);
     TextPainter painter = TextPainter(
       textDirection: TextDirection.ltr,
       text: TextSpan(style: textStyle, text: widget.controller.text),
     )..layout();
     final statement = widget.controller.text.substring(statmentPosition.baseOffset, statmentPosition.extentOffset);
-    final longestLineWidth = longestLineLength(textStyle, statement) + 24;
+    final longestLineWidth = longestLineLength(textStyle, statement);
     final lineCount = RegExp('\n').allMatches(statement).toList().length + 1;
     final lineHeight = painter.preferredLineHeight;
     final textBoxes = painter.getBoxesForSelection(statmentPosition, boxWidthStyle: BoxWidthStyle.max);
     if (textBoxes.isNotEmpty) {
       final textBox = textBoxes[0];
-      final textBoxWidth = textBox.toRect().width + 24;
+      final textBoxWidth = textBox.toRect().width;
       final top = textBox.top +
           _focusNode!.offset.dy +
-          ((fontSize / 2) * lineNumber(statmentPosition.baseOffset)) -
+          ((lineHeight / 2) * lineNumber(statmentPosition.baseOffset)) -
           _codeScroll!.offset;
 
       SelectedStatementWidget.setCurrentStatement(context, statement);
@@ -266,17 +265,18 @@ class _CodeFieldState extends State<CodeField> {
       _statementOverlay = null;
       _statementOverlay = OverlayEntry(builder: (context) {
         return Positioned(
-            left: _focusNode!.offset.dx + textBox.left - 2,
-            top: top - lineHeight * 0.6,
-            child: Container(
-                decoration: BoxDecoration(
-                    border: Border.all(color: theme.brightness == Brightness.dark ? Colors.white : Colors.black)),
-                width: max(longestLineWidth, textBoxWidth),
-                height: textBox.toRect().height +
-                    lineHeight * 0.7 +
-                    (lineCount <= 1 ? 0 : (lineCount - 1) * (lineHeight + lineHeight / 2)),
-              ),
-            );
+          left: _focusNode!.offset.dx + textBox.left - 2,
+          top: top - lineHeight * 0.6,
+          child: CustomPaint(
+            foregroundPainter: Rectangle(
+              color: theme.brightness == Brightness.dark ? Colors.white : Colors.black,
+              width: max(longestLineWidth, textBoxWidth) + (longestLineWidth / 10), // add extra space at the end,
+              height: textBox.toRect().height +
+                  lineHeight * 0.7 +
+                  (lineCount <= 1 ? 0 : (lineCount - 1) * (lineHeight + lineHeight / 2)),
+            ),
+          ),
+        );
       });
       final e = _statementOverlay;
       if (e == null) {
@@ -526,5 +526,36 @@ class _CodeFieldState extends State<CodeField> {
         ],
       ),
     );
+  }
+}
+
+class Rectangle extends CustomPainter {
+  final double width;
+  final double height;
+  final Color color;
+
+  Rectangle({
+    super.repaint,
+    required this.width,
+    required this.height,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, width, height),
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..blendMode = BlendMode.modulate
+        ..filterQuality = FilterQuality.high
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(Rectangle oldDelegate) {
+    return false;
   }
 }
