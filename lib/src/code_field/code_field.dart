@@ -268,14 +268,15 @@ class _CodeFieldState extends State<CodeField> {
         return Positioned(
             left: _focusNode!.offset.dx + textBox.left - 2,
             top: top - lineHeight * 0.6,
-            child: IgnorePointer(
-              child: Container(
+            child: Container(
                 decoration: BoxDecoration(
                     border: Border.all(color: theme.brightness == Brightness.dark ? Colors.white : Colors.black)),
                 width: max(longestLineWidth, textBoxWidth),
-                height: textBox.toRect().height + lineHeight * 0.7 + (lineCount <= 1 ? 0 : (lineCount -1) * (lineHeight + lineHeight /2)),
+                height: textBox.toRect().height +
+                    lineHeight * 0.7 +
+                    (lineCount <= 1 ? 0 : (lineCount - 1) * (lineHeight + lineHeight / 2)),
               ),
-            ));
+            );
       });
       final e = _statementOverlay;
       if (e == null) {
@@ -321,8 +322,9 @@ class _CodeFieldState extends State<CodeField> {
     if (cursorPos < 0) {
       return null;
     }
-    if (cursorPos > 0 && cursorPos < widget.controller.text.length && widget.controller.text[cursorPos] == ' ' ||
-        widget.controller.text[cursorPos] == '\n') {
+    final text = widget.controller.text;
+    if (cursorPos >= text.length - 1 ||
+        (cursorPos > 0 && cursorPos < text.length && text[cursorPos] == ' ' || text[cursorPos] == '\n')) {
       cursorPos -= 1; //  go back one so we can select if cursor just outside of statement
     }
     for (var pos in positions) {
