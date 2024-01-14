@@ -247,6 +247,12 @@ class _CodeFieldState extends State<CodeField> {
       textDirection: TextDirection.ltr,
       text: TextSpan(style: textStyle, text: widget.controller.text),
     )..layout();
+    final selctionStart= statmentPosition.baseOffset;
+    final selectionEnd = statmentPosition.extentOffset;
+    if (selctionStart < 0 || selectionEnd > widget.controller.text.length - 1) {
+      removeStatmentOverlay();
+      return;
+    }
     final statement = widget.controller.text.substring(statmentPosition.baseOffset, statmentPosition.extentOffset);
     final longestLineWidth = longestLineLength(textStyle, statement);
     final lineCount = RegExp('\n').allMatches(statement).toList().length + 1;
