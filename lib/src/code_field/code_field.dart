@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 
 import '../code_theme/code_theme.dart';
@@ -118,12 +119,17 @@ class CodeField extends StatefulWidget {
 
 class _CodeFieldState extends State<CodeField> {
   final _editorKey = GlobalKey();
+  final customPaintKey = GlobalKey();
+
+  late final statementPainter = _StatementOverlayPainter(
+      customPaintKey, widget.textStyle ?? const TextStyle(), Listenable.merge([statementNotifier, _codeScroll]));
+  final ValueNotifier<String?> statementNotifier = ValueNotifier(null);
+
   // Add a controller
   LinkedScrollControllerGroup? _controllers;
   ScrollController? _numberScroll;
   ScrollController? _codeScroll;
   LineNumberController? _numberController;
-  OverlayEntry? _statementOverlay;
 
   StreamSubscription<bool>? _keyboardVisibilitySubscription;
   FocusNode? _focusNode;
@@ -143,7 +149,7 @@ class _CodeFieldState extends State<CodeField> {
     _focusNode!.attach(context, onKey: _onKey);
     _focusNode!.addListener(() {
       if (!_focusNode!.hasFocus) {
-        removeStatmentOverlay();
+        resetStatmentOverlay();
       }
     });
 
@@ -163,10 +169,10 @@ class _CodeFieldState extends State<CodeField> {
     _onTextChanged();
   }
 
-  void removeStatmentOverlay() {
-    _statementOverlay?.remove();
-    _statementOverlay = null;
+  void resetStatmentOverlay() {
     SelectedStatementWidget.setCurrentStatement(context, null);
+    statementNotifier.value = null;
+    statementPainter.setSelectedStatement(null);
   }
 
   void createAutoComplate() {
@@ -225,94 +231,33 @@ class _CodeFieldState extends State<CodeField> {
       WidgetsBinding.instance.addPostFrameCallback(
         (timeStamp) async {
           await Future.delayed(const Duration(milliseconds: 350));
-          buildStatementOverlay();
+          getStatementPosition();
         },
       );
     }
   }
 
-  Future<void> buildStatementOverlay() async {
-    if (_focusNode?.context == null) {
-      removeStatmentOverlay();
+  Future<void> getStatementPosition() async {
+    if (_focusNode?.context == null || !widget.controller.statementOverlayEnabled) {
+      resetStatmentOverlay();
       return;
     }
     final statmentPosition = await currentStatement();
     if (statmentPosition == null) {
-      removeStatmentOverlay();
+      resetStatmentOverlay();
       return;
     }
-    TextStyle textStyle = widget.textStyle ?? const TextStyle();
-    final theme = Theme.of(context);
-    TextPainter painter = TextPainter(
-      textDirection: TextDirection.ltr,
-      text: TextSpan(style: textStyle, text: widget.controller.text),
-    )..layout();
-    final selctionStart= statmentPosition.baseOffset;
+    final selctionStart = statmentPosition.baseOffset;
     final selectionEnd = statmentPosition.extentOffset;
     if (selctionStart < 0 || selectionEnd > widget.controller.text.length - 1) {
-      removeStatmentOverlay();
+      resetStatmentOverlay();
       return;
     }
     final statement = widget.controller.text.substring(statmentPosition.baseOffset, statmentPosition.extentOffset);
-    final longestLineWidth = longestLineLength(textStyle, statement);
-    final lineCount = RegExp('\n').allMatches(statement).toList().length + 1;
-    final lineHeight = painter.preferredLineHeight;
-    final textBoxes = painter.getBoxesForSelection(statmentPosition, boxWidthStyle: BoxWidthStyle.max);
-    if (textBoxes.isNotEmpty) {
-      final textBox = textBoxes[0];
-      final textBoxWidth = textBox.toRect().width;
-      final top = textBox.top +
-          _focusNode!.offset.dy +
-          ((lineHeight / 2) * lineNumber(statmentPosition.baseOffset)) -
-          _codeScroll!.offset;
-
-      SelectedStatementWidget.setCurrentStatement(context, statement);
-      _statementOverlay?.remove();
-      _statementOverlay = null;
-      _statementOverlay = OverlayEntry(builder: (context) {
-        return Positioned(
-          left: _focusNode!.offset.dx + textBox.left - 2,
-          top: top - lineHeight * 0.6,
-          child: CustomPaint(
-            foregroundPainter: Rectangle(
-              color: theme.brightness == Brightness.dark ? Colors.white : Colors.black,
-              width: max(longestLineWidth, textBoxWidth) + (longestLineWidth / 10), // add extra space at the end,
-              height: textBox.toRect().height +
-                  lineHeight * 0.7 +
-                  (lineCount <= 1 ? 0 : (lineCount - 1) * (lineHeight + lineHeight / 2)),
-            ),
-          ),
-        );
-      });
-      final e = _statementOverlay;
-      if (e == null) {
-        return;
-      }
-      Overlay.of(context).insert(e);
-    } else {
-      removeStatmentOverlay();
-    }
-  }
-
-  double longestLineLength(TextStyle textStyle, String text) {
-    final lines = text.split('\n');
-    var line = '';
-    for (var l in lines) {
-      if (l.length > line.length) {
-        line = l;
-      }
-    }
-    final painter = TextPainter(
-      textDirection: TextDirection.ltr,
-      text: TextSpan(style: textStyle, text: line),
-    )..layout();
-    return painter.size.width;
-  }
-
-  int lineNumber(int selectionBase) {
-    final firstPart = widget.controller.text.substring(0, selectionBase);
-    final newLines = RegExp(r'\n').allMatches(firstPart).toList();
-    return newLines.length + 1;
+    SelectedStatementWidget.setCurrentStatement(context, statement);
+    statementPainter.selectedStatement = statement;
+    statementNotifier.value = statement;
+    return;
   }
 
   Future<TextSelection?> currentStatement() async {
@@ -472,41 +417,46 @@ class _CodeFieldState extends State<CodeField> {
       );
     }
 
-    final codeField = TextField(
-      keyboardType: widget.keyboardType,
-      smartQuotesType: widget.smartQuotesType,
-      focusNode: _focusNode,
-      onTap: () {
-        hideAllPopups();
-        widget.onTap?.call();
-      },
-      scrollPadding: widget.padding,
-      style: textStyle,
-      controller: widget.controller,
-      minLines: widget.minLines,
-      selectionControls: widget.selectionControls,
-      maxLines: widget.maxLines,
-      expands: true,
-      scrollController: _codeScroll,
-      decoration: InputDecoration(
-        disabledBorder: InputBorder.none,
-        border: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        isDense: widget.isDense,
-        hintText: widget.hintText,
-        hintStyle: widget.hintStyle,
-      ),
-      cursorColor: cursorColor,
-      autocorrect: false,
-      enableSuggestions: false,
-      enabled: widget.enabled,
-      undoController: widget.undoHistoryController,
-      onChanged: (text) {
-        widget.onChanged?.call(text);
-        widget.autoComplete?.streamController.add(text);
-      },
-      readOnly: widget.readOnly,
-    );
+    final codeField = DumbVisitor(
+        onFound: statementPainter.setupEditableTextState,
+        child: CustomPaint(
+            foregroundPainter: statementPainter,
+            key: customPaintKey,
+            child: TextField(
+              keyboardType: widget.keyboardType,
+              smartQuotesType: widget.smartQuotesType,
+              focusNode: _focusNode,
+              onTap: () {
+                hideAllPopups();
+                widget.onTap?.call();
+              },
+              scrollPadding: widget.padding,
+              style: textStyle,
+              controller: widget.controller,
+              minLines: widget.minLines,
+              selectionControls: widget.selectionControls,
+              maxLines: widget.maxLines,
+              expands: true,
+              scrollController: _codeScroll,
+              decoration: InputDecoration(
+                disabledBorder: InputBorder.none,
+                border: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                isDense: widget.isDense,
+                hintText: widget.hintText,
+                hintStyle: widget.hintStyle,
+              ),
+              cursorColor: cursorColor,
+              autocorrect: false,
+              enableSuggestions: false,
+              enabled: widget.enabled,
+              undoController: widget.undoHistoryController,
+              onChanged: (text) {
+                widget.onChanged?.call(text);
+                widget.autoComplete?.streamController.add(text);
+              },
+              readOnly: widget.readOnly,
+            )));
 
     final codeCol = Theme(
       data: Theme.of(context).copyWith(
@@ -535,33 +485,113 @@ class _CodeFieldState extends State<CodeField> {
   }
 }
 
-class Rectangle extends CustomPainter {
-  final double width;
-  final double height;
-  final Color color;
+class _StatementOverlayPainter extends CustomPainter {
+  _StatementOverlayPainter(this.customPaintKey, this.textStyle, Listenable repaint) : super(repaint: repaint);
+  GlobalKey customPaintKey;
+  RenderEditable? re;
+  String? selectedStatement;
 
-  Rectangle({
-    super.repaint,
-    required this.width,
-    required this.height,
-    required this.color,
-  });
+  final TextStyle textStyle;
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, width, height),
-      Paint()
-        ..color = color
-        ..strokeWidth = 0.5
-        ..style = PaintingStyle.stroke
-        ..filterQuality = FilterQuality.high
-        ..strokeCap = StrokeCap.round,
-    );
+    final st = selectedStatement;
+    if (st == null) {
+      return;
+    }
+    final longestLineWidth = longestLineLength(textStyle, st);
+    final lineCount = RegExp('\n').allMatches(st).toList().length + 1;
+    if (re case RenderEditable re) {
+      final ancestor = customPaintKey.currentContext!.findRenderObject();
+      final offset = re.localToGlobal(Offset.zero, ancestor: ancestor);
+      for (final m in st.allMatches(re.plainText)) {
+        final boxes = re.getBoxesForSelection(TextSelection(baseOffset: m.start, extentOffset: m.end));
+        if (boxes.isNotEmpty) {
+          final b = boxes.first.toRect();
+          canvas.drawRect(
+              Rect.fromLTWH(b.left, b.top, max(longestLineWidth, b.width) + (longestLineWidth / 12),
+                      (b.height + b.height / 1.9) * lineCount)
+                  .shift(offset),
+              Paint()
+                ..strokeWidth = 0.5
+                ..style = PaintingStyle.stroke
+                ..filterQuality = FilterQuality.high
+                ..strokeCap = StrokeCap.round
+                ..strokeWidth = 0.5
+                ..color = Theme.of(customPaintKey.currentContext!).brightness == Brightness.dark
+                    ? Colors.white
+                    : Colors.black);
+        }
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(Rectangle oldDelegate) {
-    return true;
+  bool shouldRepaint(_StatementOverlayPainter oldDelegate) => false;
+
+  void setupEditableTextState(EditableTextState ets) {
+    re = ets.renderEditable;
+  }
+
+  void setSelectedStatement(String? statement) {
+    selectedStatement = statement;
+  }
+
+  double longestLineLength(TextStyle textStyle, String text) {
+    final lines = text.split('\n');
+    var line = '';
+    for (var l in lines) {
+      if (l.length > line.length) {
+        line = l;
+      }
+    }
+    final painter = TextPainter(
+      textDirection: TextDirection.ltr,
+      text: TextSpan(style: textStyle, text: line),
+    )..layout();
+    return painter.size.width;
+  }
+}
+
+class DumbVisitor<T> extends StatelessWidget {
+  const DumbVisitor({
+    super.key,
+    required this.onFound,
+    required this.child,
+  });
+
+  final void Function(T object) onFound;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => child;
+
+  @override
+  StatelessElement createElement() => _DumbVisitorElement<T>(this, onFound);
+}
+
+class _DumbVisitorElement<T> extends StatelessElement {
+  _DumbVisitorElement(super.widget, this.onFound);
+
+  final void Function(T object) onFound;
+  Element? oldElement;
+
+  @override
+  Element? updateChild(Element? child, Widget? newWidget, Object? newSlot) {
+    final element = super.updateChild(child, newWidget, newSlot);
+    if (oldElement != element) {
+      oldElement = element;
+      element?.visitChildren(_visitor);
+    }
+    return element;
+  }
+
+  void _visitor(Element child) {
+    if (child is StatefulElement && child.state is T) {
+      onFound(child.state as T);
+    } else if (child.renderObject is T) {
+      onFound(child.renderObject as T);
+    }
+    child.visitChildren(_visitor);
   }
 }
