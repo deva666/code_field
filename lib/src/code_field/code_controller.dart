@@ -443,6 +443,38 @@ class CodeController extends TextEditingController {
     }
   }
 
+  void moveLineUp() {
+    final selStart = selection.baseOffset;
+    final selEnd = selection.extentOffset;
+    final substring = text.substring(0, selection.baseOffset);
+    final currentLine = substring.split('\n').length - 1;
+    if (currentLine == 0) {
+      return;
+    }
+    final lines = text.split('\n');
+    final temp = lines[currentLine - 1];
+    lines[currentLine - 1] = lines[currentLine];
+    lines[currentLine] = temp;
+    text = lines.join('\n');
+    selection = TextSelection(baseOffset: selStart - temp.length - 1, extentOffset: selEnd - temp.length - 1);
+  }
+
+  void moveLineDown() {
+    final selStart = selection.baseOffset;
+    final selEnd = selection.extentOffset;
+    final substring = text.substring(0, selection.baseOffset);
+    final currentLine = substring.split('\n').length - 1;
+    final lines = text.split('\n');
+    if (currentLine == lines.length -1) {
+      return;
+    }
+    final temp = lines[currentLine + 1];
+    lines[currentLine + 1] = lines[currentLine];
+    lines[currentLine] = temp;
+    text = lines.join('\n');
+    selection = TextSelection(baseOffset: selStart + temp.length + 1, extentOffset: selEnd + temp.length + 1);
+  }
+
   @override
   set value(TextEditingValue newValue) {
     final loc = _insertedLoc(text, newValue.text);
@@ -451,7 +483,7 @@ class CodeController extends TextEditingController {
       final char = newValue.text[loc];
       final modifiers = _modifierMap[char];
       if (modifiers != null) {
-        modifiers.sort((a,b) => a.priority.compareTo(b.priority));
+        modifiers.sort((a, b) => a.priority.compareTo(b.priority));
         for (final modifier in modifiers) {
           final val = modifier.updateString(super.text, selection, params);
           if (val != null) {

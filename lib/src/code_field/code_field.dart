@@ -73,6 +73,7 @@ class CodeField extends StatefulWidget {
   final CodeAutoComplete? autoComplete;
   final CodeSnippetSelector? codeSnippetSelector;
   final UndoHistoryController? undoHistoryController;
+  final EditableTextContextMenuBuilder? contextMenuBuilder;
 
   const CodeField({
     super.key,
@@ -105,6 +106,7 @@ class CodeField extends StatefulWidget {
     this.autoComplete,
     this.undoHistoryController,
     this.codeSnippetSelector,
+    this.contextMenuBuilder,
   });
 
   @override
@@ -347,6 +349,7 @@ class _CodeFieldState extends State<CodeField> {
       autocorrect: false,
       enableSuggestions: false,
       enabled: widget.enabled,
+      contextMenuBuilder: widget.contextMenuBuilder,
       undoController: widget.undoHistoryController,
       onChanged: (text) {
         widget.onChanged?.call(text);
