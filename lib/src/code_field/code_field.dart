@@ -78,6 +78,7 @@ class CodeField extends StatefulWidget {
   final CodeSnippetSelector? codeSnippetSelector;
   final UndoHistoryController? undoHistoryController;
   final QueryAnalyzer? queryAnalyzer;
+  final EditableTextContextMenuBuilder? contextMenuBuilder;
 
   const CodeField({
     super.key,
@@ -111,6 +112,7 @@ class CodeField extends StatefulWidget {
     this.undoHistoryController,
     this.codeSnippetSelector,
     this.queryAnalyzer,
+    this.contextMenuBuilder,
   });
 
   @override
@@ -156,14 +158,6 @@ class _CodeFieldState extends State<CodeField> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       createAutoComplate();
       createCodeSnippetSelector();
-
-      // _codeScroll?.position.isScrollingNotifier.addListener(() {
-      //   if (_codeScroll?.position.isScrollingNotifier.value == false && _focusNode?.hasFocus == true) {
-      //     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      //       buildStatementOverlay();
-      //     });
-      //   }
-      // });
     });
 
     _onTextChanged();
@@ -403,7 +397,7 @@ class _CodeFieldState extends State<CodeField> {
           disabledBorder: InputBorder.none,
           isDense: widget.isDense,
         ),
-        textAlign: widget.lineNumberStyle.textAlign,
+        textAlign: widget.lineNumberStyle.textAlign,  
       );
 
       numberCol = Container(
@@ -451,6 +445,7 @@ class _CodeFieldState extends State<CodeField> {
               enableSuggestions: false,
               enabled: widget.enabled,
               undoController: widget.undoHistoryController,
+              contextMenuBuilder: widget.contextMenuBuilder,
               onChanged: (text) {
                 widget.onChanged?.call(text);
                 widget.autoComplete?.streamController.add(text);
