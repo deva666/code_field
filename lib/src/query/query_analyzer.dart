@@ -1,5 +1,4 @@
 abstract class QueryAnalyzer {
-  List<StatementPosition> statementPositions(String sql);
   Future<List<StatementPosition>> statementPositionsAsync(String sql);
   Future<String?> analyzeSql(String sql);
 }
