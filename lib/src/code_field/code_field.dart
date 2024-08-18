@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 
 import '../code_theme/code_theme.dart';
 import '../line_numbers/line_number_controller.dart';
 import '../line_numbers/line_number_style.dart';
+import 'code_analysis.dart';
 import 'code_auto_complete.dart';
 import 'code_controller.dart';
 import 'code_snippet_selector.dart';
@@ -74,6 +78,7 @@ class CodeField extends StatefulWidget {
   final CodeSnippetSelector? codeSnippetSelector;
   final UndoHistoryController? undoHistoryController;
   final EditableTextContextMenuBuilder? contextMenuBuilder;
+  final Stream<List<CodeAnalysis>>? errorStream;
 
   const CodeField({
     super.key,
@@ -107,6 +112,7 @@ class CodeField extends StatefulWidget {
     this.undoHistoryController,
     this.codeSnippetSelector,
     this.contextMenuBuilder,
+    this.errorStream,
   });
 
   @override
@@ -114,6 +120,11 @@ class CodeField extends StatefulWidget {
 }
 
 class _CodeFieldState extends State<CodeField> {
+  final customPaintKey = GlobalKey();
+
+  late final statementPainter =
+      _ErrorLinesPainter(customPaintKey, widget.textStyle ?? const TextStyle(), Listenable.merge([_codeScroll]));
+
   // Add a controller
   LinkedScrollControllerGroup? _controllers;
   ScrollController? _numberScroll;
@@ -121,6 +132,7 @@ class _CodeFieldState extends State<CodeField> {
   LineNumberController? _numberController;
 
   StreamSubscription<bool>? _keyboardVisibilitySubscription;
+  StreamSubscription<List<CodeAnalysis>>? _errorsSubscription;
   FocusNode? _focusNode;
   String? lines;
   String longestLine = '';
@@ -136,7 +148,8 @@ class _CodeFieldState extends State<CodeField> {
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode!.onKey = _onKey;
     _focusNode!.attach(context, onKey: _onKey);
-    
+    _errorsSubscription = widget.errorStream?.listen((event) {});
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       createAutoComplate();
       createCodeSnippetSelector();
@@ -171,6 +184,7 @@ class _CodeFieldState extends State<CodeField> {
     _codeScroll?.dispose();
     _numberController?.dispose();
     _keyboardVisibilitySubscription?.cancel();
+    _errorsSubscription?.cancel();
     widget.autoComplete?.remove();
     super.dispose();
   }
@@ -321,41 +335,48 @@ class _CodeFieldState extends State<CodeField> {
       );
     }
 
-    final codeField = TextField(
-      keyboardType: widget.keyboardType,
-      smartQuotesType: widget.smartQuotesType,
-      focusNode: _focusNode,
-      onTap: () {
-        hideAllPopups();
-        widget.onTap?.call();
-      },
-      scrollPadding: widget.padding,
-      style: textStyle,
-      controller: widget.controller,
-      minLines: widget.minLines,
-      selectionControls: widget.selectionControls,
-      maxLines: widget.maxLines,
-      expands: true,
-      scrollController: _codeScroll,
-      decoration: InputDecoration(
-        disabledBorder: InputBorder.none,
-        border: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        isDense: widget.isDense,
-        hintText: widget.hintText,
-        hintStyle: widget.hintStyle,
+    final codeField = DumbVisitor(
+      onFound: statementPainter.setupEditableTextState,
+      child: CustomPaint(
+        foregroundPainter: statementPainter,
+        key: customPaintKey,
+        child: TextField(
+          keyboardType: widget.keyboardType,
+          smartQuotesType: widget.smartQuotesType,
+          focusNode: _focusNode,
+          onTap: () {
+            hideAllPopups();
+            widget.onTap?.call();
+          },
+          scrollPadding: widget.padding,
+          style: textStyle,
+          controller: widget.controller,
+          minLines: widget.minLines,
+          selectionControls: widget.selectionControls,
+          maxLines: widget.maxLines,
+          expands: true,
+          scrollController: _codeScroll,
+          decoration: InputDecoration(
+            disabledBorder: InputBorder.none,
+            border: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            isDense: widget.isDense,
+            hintText: widget.hintText,
+            hintStyle: widget.hintStyle,
+          ),
+          cursorColor: cursorColor,
+          autocorrect: false,
+          enableSuggestions: false,
+          enabled: widget.enabled,
+          contextMenuBuilder: widget.contextMenuBuilder,
+          undoController: widget.undoHistoryController,
+          onChanged: (text) {
+            widget.onChanged?.call(text);
+            widget.autoComplete?.streamController.add(text);
+          },
+          readOnly: widget.readOnly,
+        ),
       ),
-      cursorColor: cursorColor,
-      autocorrect: false,
-      enableSuggestions: false,
-      enabled: widget.enabled,
-      contextMenuBuilder: widget.contextMenuBuilder,
-      undoController: widget.undoHistoryController,
-      onChanged: (text) {
-        widget.onChanged?.call(text);
-        widget.autoComplete?.streamController.add(text);
-      },
-      readOnly: widget.readOnly,
     );
 
     final codeCol = Theme(
@@ -382,5 +403,121 @@ class _CodeFieldState extends State<CodeField> {
         ],
       ),
     );
+  }
+}
+
+class _ErrorLinesPainter extends CustomPainter {
+  _ErrorLinesPainter(this.customPaintKey, this.textStyle, Listenable listenable) : super(repaint: listenable);
+  GlobalKey customPaintKey;
+  RenderEditable? re;
+  String? selectedStatement;
+
+  final TextStyle textStyle;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // final st = selectedStatement;
+    // if (st == null) {
+    //   return;
+    // }
+    // final longestLineWidth = longestLineLength(textStyle, st);
+    // final lineCount = RegExp('\n').allMatches(st).toList().length + 1;
+    if (re case RenderEditable re) {
+      final ancestor = customPaintKey.currentContext!.findRenderObject();
+      final offset = re.localToGlobal(Offset.zero, ancestor: ancestor);
+      // for (final m in st.allMatches(re.plainText)) {
+      final boxes = re.getBoxesForSelection(TextSelection(baseOffset: 0, extentOffset: 12));
+      if (boxes.isNotEmpty) {
+        final b = boxes.first.toRect();
+        canvas.drawLine(
+            Offset(b.left, b.bottom + b.height),
+            Offset(64, b.bottom + b.height),
+            Paint()
+              ..strokeWidth = 1
+              ..style = PaintingStyle.stroke
+              ..filterQuality = FilterQuality.high
+              ..strokeCap = StrokeCap.round
+              ..color = Colors.red);
+        final paragraphBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(
+          textAlign: TextAlign.left,
+          fontSize: 12,
+        ))
+        ..pushStyle(ui.TextStyle(color: Colors.red))
+          ..addText('Error not found');
+        final paragraph = paragraphBuilder.build();
+        paragraph.layout(ui.ParagraphConstraints(width: 128));
+        canvas.drawParagraph(paragraph, Offset(64, b.bottom));
+        // }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ErrorLinesPainter oldDelegate) => false;
+
+  void setupEditableTextState(EditableTextState ets) {
+    re = ets.renderEditable;
+  }
+
+  void setSelectedStatement(String? statement) {
+    selectedStatement = statement;
+  }
+
+  double longestLineLength(TextStyle textStyle, String text) {
+    final lines = text.split('\n');
+    var line = '';
+    for (var l in lines) {
+      if (l.length > line.length) {
+        line = l;
+      }
+    }
+    final painter = TextPainter(
+      textDirection: TextDirection.ltr,
+      text: TextSpan(style: textStyle, text: line),
+    )..layout();
+    return painter.size.width;
+  }
+}
+
+class DumbVisitor<T> extends StatelessWidget {
+  const DumbVisitor({
+    super.key,
+    required this.onFound,
+    required this.child,
+  });
+
+  final void Function(T object) onFound;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => child;
+
+  @override
+  StatelessElement createElement() => _DumbVisitorElement<T>(this, onFound);
+}
+
+class _DumbVisitorElement<T> extends StatelessElement {
+  _DumbVisitorElement(super.widget, this.onFound);
+
+  final void Function(T object) onFound;
+  Element? oldElement;
+
+  @override
+  Element? updateChild(Element? child, Widget? newWidget, Object? newSlot) {
+    final element = super.updateChild(child, newWidget, newSlot);
+    if (oldElement != element) {
+      oldElement = element;
+      element?.visitChildren(_visitor);
+    }
+    return element;
+  }
+
+  void _visitor(Element child) {
+    if (child is StatefulElement && child.state is T) {
+      onFound(child.state as T);
+    } else if (child.renderObject is T) {
+      onFound(child.renderObject as T);
+    }
+    child.visitChildren(_visitor);
   }
 }
