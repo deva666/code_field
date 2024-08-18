@@ -122,7 +122,7 @@ class CodeField extends StatefulWidget {
 class _CodeFieldState extends State<CodeField> {
   final customPaintKey = GlobalKey();
 
-  late final statementPainter =
+  late final errorLinesPainer =
       _ErrorLinesPainter(customPaintKey, widget.textStyle ?? const TextStyle(), Listenable.merge([_codeScroll]));
 
   // Add a controller
@@ -209,7 +209,7 @@ class _CodeFieldState extends State<CodeField> {
     widget.controller.text.split('\n').forEach((line) {
       if (line.length > longestLine.length) longestLine = line;
     });
-
+    errorLinesPainer.code = widget.controller.text;
     setState(() {});
   }
 
@@ -336,9 +336,9 @@ class _CodeFieldState extends State<CodeField> {
     }
 
     final codeField = DumbVisitor(
-      onFound: statementPainter.setupEditableTextState,
+      onFound: errorLinesPainer.setupEditableTextState,
       child: CustomPaint(
-        foregroundPainter: statementPainter,
+        foregroundPainter: errorLinesPainer,
         key: customPaintKey,
         child: TextField(
           keyboardType: widget.keyboardType,
@@ -410,12 +410,21 @@ class _ErrorLinesPainter extends CustomPainter {
   _ErrorLinesPainter(this.customPaintKey, this.textStyle, Listenable listenable) : super(repaint: listenable);
   GlobalKey customPaintKey;
   RenderEditable? re;
-  String? selectedStatement;
 
   final TextStyle textStyle;
 
+  List<CodeAnalysis> errors = [
+    ErrorAnalysis(1, 'Not Found'),
+    // ErrorAnalysis(3, 'Another Error Found'),
+  ];
+
+  String code = '';
+
   @override
   void paint(Canvas canvas, Size size) {
+    if (code.isEmpty) {
+      return;
+    }
     // final st = selectedStatement;
     // if (st == null) {
     //   return;
@@ -425,29 +434,31 @@ class _ErrorLinesPainter extends CustomPainter {
     if (re case RenderEditable re) {
       final ancestor = customPaintKey.currentContext!.findRenderObject();
       final offset = re.localToGlobal(Offset.zero, ancestor: ancestor);
-      // for (final m in st.allMatches(re.plainText)) {
-      final boxes = re.getBoxesForSelection(TextSelection(baseOffset: 0, extentOffset: 12));
-      if (boxes.isNotEmpty) {
-        final b = boxes.first.toRect();
-        canvas.drawLine(
-            Offset(b.left, b.bottom + b.height),
-            Offset(64, b.bottom + b.height),
-            Paint()
-              ..strokeWidth = 1
-              ..style = PaintingStyle.stroke
-              ..filterQuality = FilterQuality.high
-              ..strokeCap = StrokeCap.round
-              ..color = Colors.red);
-        final paragraphBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(
-          textAlign: TextAlign.left,
-          fontSize: 12,
-        ))
-        ..pushStyle(ui.TextStyle(color: Colors.red))
-          ..addText('Error not found');
-        final paragraph = paragraphBuilder.build();
-        paragraph.layout(ui.ParagraphConstraints(width: 128));
-        canvas.drawParagraph(paragraph, Offset(64, b.bottom));
-        // }
+      for (final e in errors) {
+        final lineStartOffset = lineStart(e.lineNumber);
+        final lineEndOffset = lineEnd(lineStartOffset);
+        print('$lineStartOffset $lineEndOffset');
+        final boxes = re.getBoxesForSelection(TextSelection(baseOffset: lineStartOffset, extentOffset: lineEndOffset));
+        if (boxes.isNotEmpty) {
+          final b = boxes.first.toRect();
+          canvas.drawLine(
+              Offset(b.left + offset.dx, b.bottom + offset.dy),
+              Offset(b.right + offset.dx, b.bottom + offset.dy),
+              Paint()
+                ..strokeWidth = 1
+                ..style = PaintingStyle.stroke
+                ..filterQuality = FilterQuality.high
+                ..strokeCap = StrokeCap.round
+                ..color = Colors.red);
+          final paragraphBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(
+            textAlign: TextAlign.left,
+            fontSize: 12,
+          ))
+            ..pushStyle(ui.TextStyle(color: Colors.red))
+            ..addText(e.text);
+          final paragraph = paragraphBuilder.build()..layout(const ui.ParagraphConstraints(width: 128));
+          canvas.drawParagraph(paragraph, Offset(b.right + offset.dx, b.top + offset.dy));
+        }
       }
     }
   }
@@ -457,10 +468,6 @@ class _ErrorLinesPainter extends CustomPainter {
 
   void setupEditableTextState(EditableTextState ets) {
     re = ets.renderEditable;
-  }
-
-  void setSelectedStatement(String? statement) {
-    selectedStatement = statement;
   }
 
   double longestLineLength(TextStyle textStyle, String text) {
@@ -476,6 +483,44 @@ class _ErrorLinesPainter extends CustomPainter {
       text: TextSpan(style: textStyle, text: line),
     )..layout();
     return painter.size.width;
+  }
+
+  String lineText(int lineNum) {
+    return code.split('\n')[lineNum - 1];
+  }
+
+  int lineStart(int lineNum) {
+    if (lineNum == 1) {
+      return 0;
+    }
+    final newLines = RegExp(r'\n').allMatches(code).toList();
+    final lastMatch = newLines[lineNum - 1];
+    final firstPart = code.substring(0, lastMatch.start);
+    final newLinesPart = RegExp(r'\n').allMatches(firstPart).toList();
+    if (newLinesPart.isNotEmpty) {
+      final lastMatch = newLinesPart.last;
+      return lastMatch.end;
+    }
+    return 0;
+  }
+
+  int lineEnd(int offset) {
+    final match = RegExp(r'\n').firstMatch(code.substring(offset));
+    if (match == null) {
+      return offset;
+    } else {
+      return match.start + offset;
+    }
+  }
+
+  int lineLength(TextStyle textStyle, int line) {
+    final lines = code.split('\n');
+    final lineText = lines[line - 1];
+    final painter = TextPainter(
+      textDirection: TextDirection.ltr,
+      text: TextSpan(style: textStyle, text: lineText),
+    )..layout();
+    return painter.size.width.toInt();
   }
 }
 
