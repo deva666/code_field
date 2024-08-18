@@ -230,9 +230,10 @@ class CodeAutoComplete<T> {
   Widget background(BuildContext context, Widget content) {
     return DecoratedBox(
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).colorScheme.outline),
-            color: Theme.of(context).colorScheme.secondaryContainer, borderRadius: BorderRadius.circular(8)),
-        child:  Padding(
+            border: Border.all(color: Theme.of(context).colorScheme.outline),
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(8)),
+        child: Padding(
           padding: const EdgeInsets.all(2),
           child: content,
         ));
@@ -243,10 +244,13 @@ class DraggableWidget extends StatefulWidget {
   final Widget child;
   final Offset initialOffset;
   final Function(Offset) onOffsetUpdate;
+  final Offset? extraBounds;
 
   const DraggableWidget({
     required this.child,
-    required this.initialOffset, required this.onOffsetUpdate,
+    required this.initialOffset,
+    required this.onOffsetUpdate,
+    this.extraBounds,
   });
 
   @override
@@ -265,8 +269,10 @@ class _DraggableWidgetState extends State<DraggableWidget> {
 
   void _updatePosition(PointerMoveEvent pointerMoveEvent) {
     final size = MediaQuery.of(context).size;
-    double newOffsetX = min(size.width - 52, max(0,_offset.dx + pointerMoveEvent.delta.dx));
-    double newOffsetY = min(size.height - 148, max(0,_offset.dy + pointerMoveEvent.delta.dy));
+    double newOffsetX =
+        min(size.width - 52, max(0 + (widget.extraBounds?.dx ?? 0), _offset.dx + pointerMoveEvent.delta.dx));
+    double newOffsetY =
+        min(size.height - 148, max(0 + (widget.extraBounds?.dy ?? 0), _offset.dy + pointerMoveEvent.delta.dy));
 
     setState(() {
       _offset = Offset(newOffsetX, newOffsetY);
