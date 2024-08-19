@@ -127,7 +127,7 @@ class _CodeFieldState extends State<CodeField> {
   ScrollController? _numberScroll;
   ScrollController? _codeScroll;
   LineNumberController? _numberController;
-
+  CodeFieldEventDispatcher? _eventDispatcher;
   StreamSubscription<bool>? _keyboardVisibilitySubscription;
   StreamSubscription<List<CodeAnalysis>>? _errorsSubscription;
 
@@ -149,6 +149,7 @@ class _CodeFieldState extends State<CodeField> {
     errorLinesPainer =
         _ErrorLinesPainter(customPaintKey, widget.textStyle ?? const TextStyle(), Listenable.merge([_codeScroll]));
     _errorsSubscription = widget.errorStream?.listen((event) {
+      print(event);
       errorLinesPainer.errors = event;
       setState(() {});
     });
@@ -156,7 +157,8 @@ class _CodeFieldState extends State<CodeField> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       createAutoComplate();
       createCodeSnippetSelector();
-      CodeFieldEventDispatcher.addListener(context, onCodeFieldEvent);
+      _eventDispatcher = CodeFieldEventDispatcher.of(context)?..
+      addListener(onCodeFieldEvent);
     });
 
     _onTextChanged();
@@ -194,7 +196,7 @@ class _CodeFieldState extends State<CodeField> {
     _numberController?.dispose();
     _keyboardVisibilitySubscription?.cancel();
     _errorsSubscription?.cancel();
-    CodeFieldEventDispatcher.removeListener(context, onCodeFieldEvent);
+    _eventDispatcher?.removeListener(onCodeFieldEvent);
     widget.autoComplete?.remove();
     super.dispose();
   }
@@ -458,8 +460,8 @@ class _ErrorLinesPainter extends CustomPainter {
           ))
             ..pushStyle(ui.TextStyle(
                 color: Theme.of(customPaintKey.currentContext!).brightness == Brightness.dark
-                    ? Colors.white12
-                    : Colors.black12))
+                    ? Colors.white24
+                    : Colors.black26))
             ..addText(e.text);
           final paragraph = paragraphBuilder.build()..layout(const ui.ParagraphConstraints(width: 200));
           canvas.drawParagraph(paragraph, Offset(b.right + offset.dx + 6, b.top + offset.dy));
@@ -485,23 +487,6 @@ class _ErrorLinesPainter extends CustomPainter {
     } else {
       return lines.sublist(0, lineNum - 1).join('\n').length + 1;
     }
-    final newLines = RegExp(r'\n').allMatches(code).toList();
-    if (newLines.isEmpty) {
-      return 0;
-    }
-    int start;
-    if (lineNum >= newLines.length) {
-      start = newLines.last.start + 1;
-    } else {
-      start = newLines[lineNum - 1].start;
-    }
-    final firstPart = code.substring(0, start);
-    final newLinesPart = RegExp(r'\n').allMatches(firstPart).toList();
-    if (newLinesPart.isNotEmpty) {
-      final lastMatch = newLinesPart.last;
-      return lastMatch.end;
-    }
-    return 0;
   }
 
   int lineEnd(int offset) {

@@ -36,11 +36,15 @@ class CodeFieldEventDispatcher extends InheritedWidget {
     context.dependOnInheritedWidgetOfExactType<CodeFieldEventDispatcher>()?.notifier.notifyListeners(event);
   }
 
-  static void addListener(BuildContext context, Function(CodeFieldEvent) listener) {
-    context.dependOnInheritedWidgetOfExactType<CodeFieldEventDispatcher>()?.notifier.addListener(listener);
+  void addListener(Function(CodeFieldEvent) listener) {
+    notifier.addListener(listener);
   }
 
-  static void removeListener(BuildContext context, Function(CodeFieldEvent) listener) {
-    context.dependOnInheritedWidgetOfExactType<CodeFieldEventDispatcher>()?.notifier.removeListener(listener);
+  void removeListener(Function(CodeFieldEvent) listener) {
+    notifier.removeListener(listener);
+  }
+
+  static CodeFieldEventDispatcher? of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<CodeFieldEventDispatcher>();
   }
 }
