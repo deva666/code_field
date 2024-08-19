@@ -432,8 +432,9 @@ class _ErrorLinesPainter extends CustomPainter {
       for (final e in errors) {
         final lineStartOffset = lineStart(e.lineNumber);
         final lineEndOffset = lineEnd(lineStartOffset);
-        final boxes =
-            re.getBoxesForSelection(TextSelection(baseOffset: lineStartOffset + e.column - 1, extentOffset: lineEndOffset));
+        print('start $lineStartOffset end $lineEndOffset column ${e.column}');
+        final boxes = re.getBoxesForSelection(
+            TextSelection(baseOffset: lineStartOffset + e.column - 1, extentOffset: lineEndOffset));
         if (boxes.isNotEmpty) {
           final b = boxes.first.toRect();
           canvas.drawLine(
@@ -451,8 +452,8 @@ class _ErrorLinesPainter extends CustomPainter {
           ))
             ..pushStyle(ui.TextStyle(
                 color: Theme.of(customPaintKey.currentContext!).brightness == Brightness.dark
-                    ? Colors.white54
-                    : Colors.black54))
+                    ? Colors.white12
+                    : Colors.black12))
             ..addText(e.text);
           final paragraph = paragraphBuilder.build()..layout(const ui.ParagraphConstraints(width: 200));
           canvas.drawParagraph(paragraph, Offset(b.right + offset.dx + 6, b.top + offset.dy));
@@ -472,12 +473,23 @@ class _ErrorLinesPainter extends CustomPainter {
     if (lineNum == 1) {
       return 0;
     }
+    final lines = code.split('\n');
+    if (lineNum > lines.length) {
+      return code.length -1;
+    } else {
+      return lines.sublist(0, lineNum -1).join('\n').length + 1;
+    }
     final newLines = RegExp(r'\n').allMatches(code).toList();
-    if (newLines.isEmpty || lineNum >= newLines.length) {
+    if (newLines.isEmpty) {
       return 0;
     }
-    final lastMatch = newLines[lineNum - 1];
-    final firstPart = code.substring(0, lastMatch.start);
+    int start;
+    if (lineNum >= newLines.length) {
+      start = newLines.last.start + 1;
+    } else {
+      start = newLines[lineNum - 1].start;
+    }
+    final firstPart = code.substring(0, start);
     final newLinesPart = RegExp(r'\n').allMatches(firstPart).toList();
     if (newLinesPart.isNotEmpty) {
       final lastMatch = newLinesPart.last;
@@ -489,7 +501,7 @@ class _ErrorLinesPainter extends CustomPainter {
   int lineEnd(int offset) {
     final match = RegExp(r'\n').firstMatch(code.substring(offset));
     if (match == null) {
-      return offset;
+      return code.length -1;
     } else {
       return match.start + offset;
     }
