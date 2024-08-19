@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 
@@ -122,10 +124,7 @@ class CodeField extends StatefulWidget {
 class _CodeFieldState extends State<CodeField> {
   final customPaintKey = GlobalKey();
 
-  late final errorLinesPainer =
-      _ErrorLinesPainter(customPaintKey, widget.textStyle ?? const TextStyle(), Listenable.merge([_codeScroll]));
-
-  // Add a controller
+  late final _ErrorLinesPainter errorLinesPainer;
   LinkedScrollControllerGroup? _controllers;
   ScrollController? _numberScroll;
   ScrollController? _codeScroll;
@@ -148,7 +147,12 @@ class _CodeFieldState extends State<CodeField> {
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode!.onKey = _onKey;
     _focusNode!.attach(context, onKey: _onKey);
-    _errorsSubscription = widget.errorStream?.listen((event) {});
+    errorLinesPainer =
+        _ErrorLinesPainter(customPaintKey, widget.textStyle ?? const TextStyle(), Listenable.merge([_codeScroll]));
+    _errorsSubscription = widget.errorStream?.listen((event) {
+      errorLinesPainer.errors = event;
+      setState(() {});
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       createAutoComplate();
@@ -413,10 +417,7 @@ class _ErrorLinesPainter extends CustomPainter {
 
   final TextStyle textStyle;
 
-  List<CodeAnalysis> errors = [
-    ErrorAnalysis(1, 'Not Found'),
-    // ErrorAnalysis(3, 'Another Error Found'),
-  ];
+  List<CodeAnalysis> errors = [];
 
   String code = '';
 
@@ -425,20 +426,14 @@ class _ErrorLinesPainter extends CustomPainter {
     if (code.isEmpty) {
       return;
     }
-    // final st = selectedStatement;
-    // if (st == null) {
-    //   return;
-    // }
-    // final longestLineWidth = longestLineLength(textStyle, st);
-    // final lineCount = RegExp('\n').allMatches(st).toList().length + 1;
     if (re case RenderEditable re) {
       final ancestor = customPaintKey.currentContext!.findRenderObject();
       final offset = re.localToGlobal(Offset.zero, ancestor: ancestor);
       for (final e in errors) {
         final lineStartOffset = lineStart(e.lineNumber);
         final lineEndOffset = lineEnd(lineStartOffset);
-        print('$lineStartOffset $lineEndOffset');
-        final boxes = re.getBoxesForSelection(TextSelection(baseOffset: lineStartOffset, extentOffset: lineEndOffset));
+        final boxes =
+            re.getBoxesForSelection(TextSelection(baseOffset: lineStartOffset + e.column - 1, extentOffset: lineEndOffset));
         if (boxes.isNotEmpty) {
           final b = boxes.first.toRect();
           canvas.drawLine(
@@ -449,15 +444,18 @@ class _ErrorLinesPainter extends CustomPainter {
                 ..style = PaintingStyle.stroke
                 ..filterQuality = FilterQuality.high
                 ..strokeCap = StrokeCap.round
-                ..color = Colors.red);
+                ..color = Colors.red.shade400);
           final paragraphBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(
             textAlign: TextAlign.left,
-            fontSize: 12,
+            fontSize: 14,
           ))
-            ..pushStyle(ui.TextStyle(color: Colors.red))
+            ..pushStyle(ui.TextStyle(
+                color: Theme.of(customPaintKey.currentContext!).brightness == Brightness.dark
+                    ? Colors.white54
+                    : Colors.black54))
             ..addText(e.text);
-          final paragraph = paragraphBuilder.build()..layout(const ui.ParagraphConstraints(width: 128));
-          canvas.drawParagraph(paragraph, Offset(b.right + offset.dx, b.top + offset.dy));
+          final paragraph = paragraphBuilder.build()..layout(const ui.ParagraphConstraints(width: 200));
+          canvas.drawParagraph(paragraph, Offset(b.right + offset.dx + 6, b.top + offset.dy));
         }
       }
     }
@@ -470,30 +468,14 @@ class _ErrorLinesPainter extends CustomPainter {
     re = ets.renderEditable;
   }
 
-  double longestLineLength(TextStyle textStyle, String text) {
-    final lines = text.split('\n');
-    var line = '';
-    for (var l in lines) {
-      if (l.length > line.length) {
-        line = l;
-      }
-    }
-    final painter = TextPainter(
-      textDirection: TextDirection.ltr,
-      text: TextSpan(style: textStyle, text: line),
-    )..layout();
-    return painter.size.width;
-  }
-
-  String lineText(int lineNum) {
-    return code.split('\n')[lineNum - 1];
-  }
-
   int lineStart(int lineNum) {
     if (lineNum == 1) {
       return 0;
     }
     final newLines = RegExp(r'\n').allMatches(code).toList();
+    if (newLines.isEmpty || lineNum >= newLines.length) {
+      return 0;
+    }
     final lastMatch = newLines[lineNum - 1];
     final firstPart = code.substring(0, lastMatch.start);
     final newLinesPart = RegExp(r'\n').allMatches(firstPart).toList();
@@ -511,16 +493,6 @@ class _ErrorLinesPainter extends CustomPainter {
     } else {
       return match.start + offset;
     }
-  }
-
-  int lineLength(TextStyle textStyle, int line) {
-    final lines = code.split('\n');
-    final lineText = lines[line - 1];
-    final painter = TextPainter(
-      textDirection: TextDirection.ltr,
-      text: TextSpan(style: textStyle, text: lineText),
-    )..layout();
-    return painter.size.width.toInt();
   }
 }
 
