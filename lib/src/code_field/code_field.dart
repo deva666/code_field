@@ -507,7 +507,7 @@ class _ErrorLinesPainter extends CustomPainter {
   int lineEnd(int offset) {
     final match = RegExp(r'\n').firstMatch(code.substring(offset));
     if (match == null) {
-      return code.length - 1;
+      return code.length;
     } else {
       return match.start + offset;
     }
