@@ -2,11 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 
 import '../code_theme/code_theme.dart';
@@ -16,6 +13,7 @@ import 'code_analysis.dart';
 import 'code_auto_complete.dart';
 import 'code_controller.dart';
 import 'code_snippet_selector.dart';
+import 'event_dispatcher.dart';
 
 class CodeField extends StatefulWidget {
   /// {@macro flutter.widgets.textField.smartQuotesType}
@@ -132,6 +130,7 @@ class _CodeFieldState extends State<CodeField> {
 
   StreamSubscription<bool>? _keyboardVisibilitySubscription;
   StreamSubscription<List<CodeAnalysis>>? _errorsSubscription;
+
   FocusNode? _focusNode;
   String? lines;
   String longestLine = '';
@@ -157,9 +156,15 @@ class _CodeFieldState extends State<CodeField> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       createAutoComplate();
       createCodeSnippetSelector();
+      CodeFieldEventDispatcher.addListener(context, onCodeFieldEvent);
     });
 
     _onTextChanged();
+  }
+
+  void onCodeFieldEvent(CodeFieldEvent e) {
+    errorLinesPainer.errors = [];
+    setState(() {});
   }
 
   void createAutoComplate() {
@@ -189,6 +194,7 @@ class _CodeFieldState extends State<CodeField> {
     _numberController?.dispose();
     _keyboardVisibilitySubscription?.cancel();
     _errorsSubscription?.cancel();
+    CodeFieldEventDispatcher.removeListener(context, onCodeFieldEvent);
     widget.autoComplete?.remove();
     super.dispose();
   }
@@ -475,9 +481,9 @@ class _ErrorLinesPainter extends CustomPainter {
     }
     final lines = code.split('\n');
     if (lineNum > lines.length) {
-      return code.length -1;
+      return code.length - 1;
     } else {
-      return lines.sublist(0, lineNum -1).join('\n').length + 1;
+      return lines.sublist(0, lineNum - 1).join('\n').length + 1;
     }
     final newLines = RegExp(r'\n').allMatches(code).toList();
     if (newLines.isEmpty) {
@@ -501,7 +507,7 @@ class _ErrorLinesPainter extends CustomPainter {
   int lineEnd(int offset) {
     final match = RegExp(r'\n').firstMatch(code.substring(offset));
     if (match == null) {
-      return code.length -1;
+      return code.length - 1;
     } else {
       return match.start + offset;
     }
