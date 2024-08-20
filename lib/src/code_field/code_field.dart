@@ -149,7 +149,7 @@ class _CodeFieldState extends State<CodeField> {
     errorLinesPainer =
         _ErrorLinesPainter(customPaintKey, widget.textStyle ?? const TextStyle(), Listenable.merge([_codeScroll]));
     _errorsSubscription = widget.errorStream?.listen((event) {
-      print(event);
+      print('got event $event');
       errorLinesPainer.errors = event;
       setState(() {});
     });
@@ -441,8 +441,10 @@ class _ErrorLinesPainter extends CustomPainter {
         final lineStartOffset = lineStart(e.lineNumber);
         final lineEndOffset = lineEnd(lineStartOffset);
         print('start $lineStartOffset end $lineEndOffset column ${e.column}');
+        // if column is on the end of the line, highlight the whole line
+        int selectionStart = e.column > (lineEndOffset - lineStartOffset) ? lineStartOffset : lineStartOffset + e.column - 1;
         final boxes = re.getBoxesForSelection(
-            TextSelection(baseOffset: lineStartOffset + e.column - 1, extentOffset: lineEndOffset));
+            TextSelection(baseOffset: selectionStart, extentOffset: lineEndOffset));
         if (boxes.isNotEmpty) {
           final b = boxes.first.toRect();
           canvas.drawLine(
@@ -463,7 +465,7 @@ class _ErrorLinesPainter extends CustomPainter {
                     ? Colors.white24
                     : Colors.black26))
             ..addText(e.text);
-          final paragraph = paragraphBuilder.build()..layout(const ui.ParagraphConstraints(width: 200));
+          final paragraph = paragraphBuilder.build()..layout(const ui.ParagraphConstraints(width: 256));
           canvas.drawParagraph(paragraph, Offset(b.right + offset.dx + 6, b.top + offset.dy));
         }
       }
