@@ -270,9 +270,9 @@ class _DraggableWidgetState extends State<DraggableWidget> {
   void _updatePosition(PointerMoveEvent pointerMoveEvent) {
     final size = MediaQuery.of(context).size;
     double newOffsetX =
-        min(size.width - 52, max(0 + (widget.extraBounds?.dx ?? 0), _offset.dx + pointerMoveEvent.delta.dx));
+        min(size.width - 44, max(0 + (widget.extraBounds?.dx ?? 0), _offset.dx + pointerMoveEvent.delta.dx));
     double newOffsetY =
-        min(size.height - 148, max(0 + (widget.extraBounds?.dy ?? 0), _offset.dy + pointerMoveEvent.delta.dy));
+        min(size.height - 160, max(0 + (widget.extraBounds?.dy ?? 0), _offset.dy + pointerMoveEvent.delta.dy));
 
     setState(() {
       _offset = Offset(newOffsetX, newOffsetY);
