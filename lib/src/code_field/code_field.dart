@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 
 import '../code_theme/code_theme.dart';
@@ -149,7 +150,6 @@ class _CodeFieldState extends State<CodeField> {
     errorLinesPainer =
         _ErrorLinesPainter(customPaintKey, widget.textStyle ?? const TextStyle(), Listenable.merge([_codeScroll]));
     _errorsSubscription = widget.errorStream?.listen((event) {
-      print('got event $event');
       errorLinesPainer.errors = event;
       setState(() {});
     });
@@ -157,8 +157,7 @@ class _CodeFieldState extends State<CodeField> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       createAutoComplate();
       createCodeSnippetSelector();
-      _eventDispatcher = CodeFieldEventDispatcher.of(context)?..
-      addListener(onCodeFieldEvent);
+      _eventDispatcher = CodeFieldEventDispatcher.of(context)?..addListener(onCodeFieldEvent);
     });
 
     _onTextChanged();
@@ -217,10 +216,15 @@ class _CodeFieldState extends State<CodeField> {
     _numberController?.text = buf.join('\n');
 
     // Find longest line
-    longestLine = '';
+    longestLine = ''; 
     widget.controller.text.split('\n').forEach((line) {
       if (line.length > longestLine.length) longestLine = line;
     });
+    var longestError = '';
+    for (final e in errorLinesPainer.errors) {
+      if (e.text.length > longestError.length) longestError = e.text;
+    }
+    longestLine += longestError;
     errorLinesPainer.code = widget.controller.text;
     setState(() {});
   }
@@ -440,33 +444,33 @@ class _ErrorLinesPainter extends CustomPainter {
       for (final e in errors) {
         final lineStartOffset = lineStart(e.lineNumber);
         final lineEndOffset = lineEnd(lineStartOffset);
-        print('start $lineStartOffset end $lineEndOffset column ${e.column}');
         // if column is on the end of the line, highlight the whole line
-        int selectionStart = e.column > (lineEndOffset - lineStartOffset) ? lineStartOffset : lineStartOffset + e.column - 1;
-        final boxes = re.getBoxesForSelection(
-            TextSelection(baseOffset: selectionStart, extentOffset: lineEndOffset));
-        if (boxes.isNotEmpty) {
-          final b = boxes.first.toRect();
+        int selectionStart =
+            e.column > (lineEndOffset - lineStartOffset) ? lineStartOffset : lineStartOffset + e.column - 1;
+        final boxes = re.getBoxesForSelection(TextSelection(baseOffset: selectionStart, extentOffset: lineEndOffset));
+        if (boxes.isNotEmpty) {          
+          final firstBox = boxes.first.toRect();
+          final lastBox = boxes.last.toRect();
           canvas.drawLine(
-              Offset(b.left + offset.dx, b.bottom + offset.dy),
-              Offset(b.right + offset.dx, b.bottom + offset.dy),
+              Offset(firstBox.left + offset.dx, firstBox.bottom + offset.dy),
+              Offset(lastBox.right + offset.dx, firstBox.bottom + offset.dy),
               Paint()
                 ..strokeWidth = 1
                 ..style = PaintingStyle.stroke
-                ..filterQuality = FilterQuality.high
+                ..filterQuality = FilterQuality.low
                 ..strokeCap = StrokeCap.round
-                ..color = Colors.red.shade400);
-          final paragraphBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(
-            textAlign: TextAlign.left,
-            fontSize: 14,
-          ))
+                ..color = Colors.red.shade300);
+          final paragraphBuilder = ui.ParagraphBuilder(
+            ui.ParagraphStyle(textAlign: TextAlign.left, fontSize: 14,)
+          )
             ..pushStyle(ui.TextStyle(
                 color: Theme.of(customPaintKey.currentContext!).brightness == Brightness.dark
                     ? Colors.white24
                     : Colors.black26))
             ..addText(e.text);
-          final paragraph = paragraphBuilder.build()..layout(const ui.ParagraphConstraints(width: 256));
-          canvas.drawParagraph(paragraph, Offset(b.right + offset.dx + 6, b.top + offset.dy));
+          final paragraph = paragraphBuilder.build()
+            ..layout(const ui.ParagraphConstraints(width: 1000));
+          canvas.drawParagraph(paragraph, Offset(lastBox.right + offset.dx + 6, firstBox.top + offset.dy));
         }
       }
     }
