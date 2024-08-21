@@ -216,15 +216,21 @@ class _CodeFieldState extends State<CodeField> {
     _numberController?.text = buf.join('\n');
 
     // Find longest line
-    longestLine = ''; 
-    widget.controller.text.split('\n').forEach((line) {
-      if (line.length > longestLine.length) longestLine = line;
-    });
-    var longestError = '';
+    longestLine = '';
+    final lineNumsWithlongestError = <int, String>{};
     for (final e in errorLinesPainer.errors) {
-      if (e.text.length > longestError.length) longestError = e.text;
+      lineNumsWithlongestError[e.lineNumber - 1] = e.text;
     }
-    longestLine += longestError;
+    final lines = widget.controller.text.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (lineNumsWithlongestError.containsKey(i)) {
+        line += lineNumsWithlongestError[i]!;
+      }
+      if (line.length > longestLine.length) {
+        longestLine = line;
+      }
+    }
     errorLinesPainer.code = widget.controller.text;
     setState(() {});
   }
@@ -455,7 +461,7 @@ class _ErrorLinesPainter extends CustomPainter {
               Offset(firstBox.left + offset.dx, firstBox.bottom + offset.dy),
               Offset(lastBox.right + offset.dx, firstBox.bottom + offset.dy),
               Paint()
-                ..strokeWidth = 1
+                ..strokeWidth = 1.5
                 ..style = PaintingStyle.stroke
                 ..filterQuality = FilterQuality.low
                 ..strokeCap = StrokeCap.round
