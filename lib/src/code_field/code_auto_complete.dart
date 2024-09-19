@@ -1,10 +1,70 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:highlighting/highlighting.dart';
+
 import '../../code_text_field.dart';
 
 typedef OffsetGetter = Offset? Function();
+
+class Completions {
+  final List<Completion> completions;
+  Completions({required this.completions});
+
+  Map<String, dynamic> toMap() {
+    final result = <String, dynamic>{}..addAll({'completions': completions.map((x) => x.toMap()).toList()});
+    return result;
+  }
+
+  factory Completions.fromMap(Map<String, dynamic> map) {
+    return Completions(
+      completions: List<Completion>.from(map['completions']?.map((x) => Completion.fromMap(x))),
+    );
+  }
+
+  String toJson() => json.encode(toMap());
+
+  factory Completions.fromJson(String source) => Completions.fromMap(json.decode(source));
+}
+
+class Completion {
+  final String name;
+  final String complete;
+  final String type;
+  final String docstring;
+  final String nameWithSymbols;
+
+  Completion({required this.name, required this.complete, required this.type, required this.docstring, required this.nameWithSymbols});
+
+  Map<String, dynamic> toMap() {
+    final result = <String, dynamic>{}
+      ..addAll({'name': name})
+      ..addAll({'complete': complete})
+      ..addAll({'type': type})
+      ..addAll({'docstring': docstring})
+      ..addAll({'nameWithSymbols': nameWithSymbols});
+
+    return result;
+  }
+
+  factory Completion.fromMap(Map<String, dynamic> map) {
+    return Completion(
+      name: map['name'] ?? '',
+      complete: map['complete'] ?? '',
+      type: map['type'] ?? '',
+      docstring: map['docstring'] ?? '',
+      nameWithSymbols: map['nameWithSymbols'] ?? '',
+    );
+  }
+
+  String toJson() => json.encode(toMap());
+
+  factory Completion.fromJson(String source) => Completion.fromMap(json.decode(source));
+}
+
+Widget defaultCompletionItemBuilder(Completion c, Function(Completion) onTap) => const SizedBox();
 
 class CodeAutoComplete<T> {
   /// can input your options which created through editor text and language.
@@ -12,6 +72,8 @@ class CodeAutoComplete<T> {
 
   /// depends on your options, you can create your own item widget.
   final Widget Function(T, bool, Function(String) onTap) itemBuilder;
+
+  final Widget Function(Completion, Function(Completion) onTap) completionItemBuilder;
 
   /// set the tip panel size.
   final BoxConstraints constraints;
@@ -42,21 +104,23 @@ class CodeAutoComplete<T> {
   Function(Offset) onOffsetUpdated;
   StreamController streamController;
   Stream get stream => streamController.stream;
+  Stream<Completions>? completionsStream;
 
   Function()? showCallback;
 
   bool get active => panelOverlay != null;
 
-  CodeAutoComplete({
-    required this.optionsBuilder,
-    required this.itemBuilder,
-    required this.streamController,
-    required this.onOffsetUpdated,
-    this.initialOffset,
-    this.constraints = const BoxConstraints(maxHeight: 300, maxWidth: 240),
-    this.backgroundColor,
-    this.optionValue,
-  });
+  CodeAutoComplete(
+      {required this.optionsBuilder,
+      required this.itemBuilder,
+      required this.streamController,
+      required this.onOffsetUpdated,
+      this.completionItemBuilder = defaultCompletionItemBuilder,
+      this.initialOffset,
+      this.constraints = const BoxConstraints(maxHeight: 300, maxWidth: 380),
+      this.backgroundColor,
+      this.optionValue,
+      this.completionsStream});
 
   OverlayEntry? panelOverlay;
 
@@ -76,7 +140,16 @@ class CodeAutoComplete<T> {
   void show(BuildContext codeFieldContext, CodeField wdg, FocusNode focusNode, Function() callback) {
     widget = wdg;
     showCallback = callback;
-    OverlayEntry overlayEntry = OverlayEntry(builder: (context) {
+    OverlayEntry overlayEntry =
+        completionsStream == null ? buildSyncOverlayEntry(wdg, focusNode) : buildStreamOverlayEntry(wdg, focusNode);
+
+    panelOverlay = overlayEntry;
+
+    Overlay.of(codeFieldContext).insert(panelOverlay!);
+  }
+
+  OverlayEntry buildSyncOverlayEntry(CodeField wdg, FocusNode focusNode) {
+    return OverlayEntry(builder: (context) {
       return StreamBuilder(
         stream: stream,
         builder: (context, snapshot) {
@@ -102,10 +175,42 @@ class CodeAutoComplete<T> {
         },
       );
     });
+  }
 
-    panelOverlay = overlayEntry;
+  // build from incoming stream of completions
+  OverlayEntry buildStreamOverlayEntry(CodeField wdg, FocusNode focusNode) {
+    return OverlayEntry(builder: (context) {
+      return StreamBuilder<Completions?>(
+        stream: completionsStream,
+        builder: (context, snapshot) {
+          isShowing = false;
+          current = 0;
+          if (!focusNode.hasFocus || snapshot.data == null || snapshot.data!.completions.isEmpty) return const Offstage();
+          if (snapshot.hasData && snapshot.data is Completions && snapshot.data!.completions.isNotEmpty) {
+            isShowing = true;
+            showCallback?.call();
+            return DraggableWidget(
+              onOffsetUpdate: onOffsetUpdated,
+              initialOffset: _getInitialOffset(context, widget, focusNode),
+              child: panelWrap(context, wdg, focusNode, completions: snapshot.data),
+            );
+          } else {
+            return const Offstage();
+          }
+        },
+      );
+    });
+  }
 
-    Overlay.of(codeFieldContext).insert(panelOverlay!);
+  Widget buildCompletionsPanel(Completions completions) {
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children:
+            completions.completions.map((completion) => completionItemBuilder(completion, writeCompletion)).toList(),
+      ),
+    );
   }
 
   /// the core widget of tip panel.
@@ -117,6 +222,19 @@ class CodeAutoComplete<T> {
         children: options.map((tip) => itemBuilder(tip, current == options.indexOf(tip), write)).toList(),
       ),
     );
+  }
+
+  /// write the text to code field.
+  void writeCompletion(Completion completion) {
+    // var offset = widget.controller.selection.baseOffset;
+    // int start = repeatCount(widget.controller.text.substring(0, offset), text);
+    // widget.controller
+    //   ..text = widget.controller.text
+    //       .replaceRange(widget.controller.selection.baseOffset - start, widget.controller.selection.baseOffset, text)
+    //   ..selection = TextSelection.fromPosition(TextPosition(offset: offset + text.length - start));
+    widget.controller.insertStr(completion.complete);
+    widget.onChanged?.call(widget.controller.text);
+    hide();
   }
 
   /// write the text to code field.
@@ -150,17 +268,6 @@ class CodeAutoComplete<T> {
       text2 = text2.substring(0, text2.length - 1);
     }
     return same;
-  }
-
-  Offset _editorOffset(ScrollController codeScroll, GlobalKey editorKey) {
-    final box = editorKey.currentContext!.findRenderObject() as RenderBox?;
-    var editorOffset = box?.localToGlobal(Offset.zero);
-    if (editorOffset != null) {
-      var fixedOffset = editorOffset;
-      fixedOffset += Offset(0, codeScroll.offset);
-      return fixedOffset;
-    }
-    return Offset.zero;
   }
 
   Offset _getInitialOffset(BuildContext context, CodeField widget, FocusNode focusNode) {
@@ -206,14 +313,14 @@ class CodeAutoComplete<T> {
   }
 
   /// the style widget of tip panel.
-  Widget panelWrap(BuildContext context, CodeField wdg, FocusNode focusNode) {
+  Widget panelWrap(BuildContext context, CodeField wdg, FocusNode focusNode, {Completions? completions}) {
     return Material(
       type: MaterialType.transparency,
       child: background(
         context,
         ConstrainedBox(
           constraints: constraints,
-          child: buildPanel(),
+          child: completions == null ? buildPanel() : buildCompletionsPanel(completions),
         ),
       ),
     );
