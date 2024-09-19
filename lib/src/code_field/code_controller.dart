@@ -195,10 +195,10 @@ class CodeController extends TextEditingController {
         autoComplete!.panelSetState?.call(() {});
         return KeyEventResult.handled;
       }
-      if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
-        autoComplete!.writeCurrent();
-        return KeyEventResult.handled;
-      }
+      // if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
+      //   autoComplete!.writeCurrent();
+      //   return KeyEventResult.handled;
+      // }
       if (event.isKeyPressed(LogicalKeyboardKey.escape)) {
         autoComplete!.hide();
         return KeyEventResult.handled;

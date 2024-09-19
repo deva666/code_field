@@ -13,6 +13,10 @@ class Completions {
   final List<Completion> completions;
   Completions({required this.completions});
 
+  factory Completions.empty() {
+    return Completions(completions: []);
+  }
+
   Map<String, dynamic> toMap() {
     final result = <String, dynamic>{}..addAll({'completions': completions.map((x) => x.toMap()).toList()});
     return result;
@@ -35,8 +39,15 @@ class Completion {
   final String type;
   final String docstring;
   final String nameWithSymbols;
+  final int completionPrefixLength;
 
-  Completion({required this.name, required this.complete, required this.type, required this.docstring, required this.nameWithSymbols});
+  Completion(
+      {required this.name,
+      required this.complete,
+      required this.type,
+      required this.docstring,
+      required this.nameWithSymbols,
+      required this.completionPrefixLength});
 
   Map<String, dynamic> toMap() {
     final result = <String, dynamic>{}
@@ -44,7 +55,8 @@ class Completion {
       ..addAll({'complete': complete})
       ..addAll({'type': type})
       ..addAll({'docstring': docstring})
-      ..addAll({'nameWithSymbols': nameWithSymbols});
+      ..addAll({'nameWithSymbols': nameWithSymbols})
+      ..addAll({'completionPrefixLength': completionPrefixLength});
 
     return result;
   }
@@ -56,6 +68,7 @@ class Completion {
       type: map['type'] ?? '',
       docstring: map['docstring'] ?? '',
       nameWithSymbols: map['nameWithSymbols'] ?? '',
+      completionPrefixLength: map['completionPrefixLength'] ?? 0,
     );
   }
 
@@ -180,25 +193,34 @@ class CodeAutoComplete<T> {
   // build from incoming stream of completions
   OverlayEntry buildStreamOverlayEntry(CodeField wdg, FocusNode focusNode) {
     return OverlayEntry(builder: (context) {
-      return StreamBuilder<Completions?>(
-        stream: completionsStream,
-        builder: (context, snapshot) {
-          isShowing = false;
-          current = 0;
-          if (!focusNode.hasFocus || snapshot.data == null || snapshot.data!.completions.isEmpty) return const Offstage();
-          if (snapshot.hasData && snapshot.data is Completions && snapshot.data!.completions.isNotEmpty) {
-            isShowing = true;
-            showCallback?.call();
-            return DraggableWidget(
-              onOffsetUpdate: onOffsetUpdated,
-              initialOffset: _getInitialOffset(context, widget, focusNode),
-              child: panelWrap(context, wdg, focusNode, completions: snapshot.data),
+      return StreamBuilder(
+          stream: stream,
+          builder: (context, textSnapshot) {
+            if (!textSnapshot.hasData) {
+              return const Offstage();
+            }
+            return StreamBuilder<Completions?>(
+              stream: completionsStream,
+              builder: (context, snapshot) {
+                isShowing = false;
+                current = 0;
+                if (!focusNode.hasFocus || snapshot.data == null || snapshot.data!.completions.isEmpty) {
+                  return const Offstage();
+                }
+                if (snapshot.hasData && snapshot.data is Completions && snapshot.data!.completions.isNotEmpty) {
+                  isShowing = true;
+                  showCallback?.call();
+                  return DraggableWidget(
+                    onOffsetUpdate: onOffsetUpdated,
+                    initialOffset: _getInitialOffset(context, widget, focusNode),
+                    child: panelWrap(context, wdg, focusNode, completions: snapshot.data),
+                  );
+                } else {
+                  return const Offstage();
+                }
+              },
             );
-          } else {
-            return const Offstage();
-          }
-        },
-      );
+          });
     });
   }
 
@@ -226,13 +248,20 @@ class CodeAutoComplete<T> {
 
   /// write the text to code field.
   void writeCompletion(Completion completion) {
-    // var offset = widget.controller.selection.baseOffset;
-    // int start = repeatCount(widget.controller.text.substring(0, offset), text);
-    // widget.controller
-    //   ..text = widget.controller.text
-    //       .replaceRange(widget.controller.selection.baseOffset - start, widget.controller.selection.baseOffset, text)
-    //   ..selection = TextSelection.fromPosition(TextPosition(offset: offset + text.length - start));
-    widget.controller.insertStr(completion.complete);
+    if (completion.completionPrefixLength > 0) {
+      final offset = widget.controller.selection.baseOffset;
+      final start = max(offset - completion.completionPrefixLength, 0);
+      final text = widget.controller.text.substring(start, offset);
+      if (text != completion.name.substring(0, completion.completionPrefixLength)) {
+        widget.controller
+          ..text = widget.controller.text.replaceRange(start, offset, completion.name)
+          ..selection = TextSelection.fromPosition(TextPosition(offset: offset + completion.complete.length));
+      } else {
+        widget.controller.insertStr(completion.complete);
+      }
+    } else {
+      widget.controller.insertStr(completion.complete);
+    }
     widget.onChanged?.call(widget.controller.text);
     hide();
   }
@@ -352,12 +381,14 @@ class DraggableWidget extends StatefulWidget {
   final Offset initialOffset;
   final Function(Offset) onOffsetUpdate;
   final Offset? extraBounds;
+  final bool dragOnLongPress;
 
   const DraggableWidget({
     required this.child,
     required this.initialOffset,
     required this.onOffsetUpdate,
     this.extraBounds,
+    this.dragOnLongPress = true,
   });
 
   @override
@@ -394,16 +425,23 @@ class _DraggableWidgetState extends State<DraggableWidget> {
       top: _offset.dy,
       child: GestureDetector(
         onLongPress: () {
+          if (widget.dragOnLongPress) {
             setState(() {
               _isDragging = true;
             });
+          }
         },
         child: Listener(
           onPointerMove: (PointerMoveEvent pointerMoveEvent) {
+            if (!widget.dragOnLongPress) {
+              setState(() {
+                _isDragging = true;
+              });
+            }
             if (!_isDragging) {
               return;
             }
-            _updatePosition(pointerMoveEvent);          
+            _updatePosition(pointerMoveEvent);
           },
           onPointerUp: (PointerUpEvent pointerUpEvent) {
             if (_isDragging) {

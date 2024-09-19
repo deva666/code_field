@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/widgets.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 
 import '../code_theme/code_theme.dart';
@@ -329,6 +328,7 @@ class _CodeFieldState extends State<CodeField> {
 
     if (widget.lineNumbers) {
       lineNumberCol = TextField(
+        onTap: hideAllPopups,
         smartQuotesType: widget.smartQuotesType,
         scrollPadding: widget.padding,
         style: numberTextStyle,
