@@ -392,22 +392,28 @@ class _DraggableWidgetState extends State<DraggableWidget> {
     return Positioned(
       left: _offset.dx,
       top: _offset.dy,
-      child: Listener(
-        onPointerMove: (PointerMoveEvent pointerMoveEvent) {
-          _updatePosition(pointerMoveEvent);
-
-          setState(() {
-            _isDragging = true;
-          });
-        },
-        onPointerUp: (PointerUpEvent pointerUpEvent) {
-          if (_isDragging) {
+      child: GestureDetector(
+        onLongPress: () {
             setState(() {
-              _isDragging = false;
+              _isDragging = true;
             });
-          } else {}
         },
-        child: widget.child,
+        child: Listener(
+          onPointerMove: (PointerMoveEvent pointerMoveEvent) {
+            if (!_isDragging) {
+              return;
+            }
+            _updatePosition(pointerMoveEvent);          
+          },
+          onPointerUp: (PointerUpEvent pointerUpEvent) {
+            if (_isDragging) {
+              setState(() {
+                _isDragging = false;
+              });
+            } else {}
+          },
+          child: widget.child,
+        ),
       ),
     );
   }
