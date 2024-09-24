@@ -30,6 +30,7 @@ class CodeController extends TextEditingController {
   Language? _language;
   CodeAutoComplete? autoComplete;
   CodeSnippetSelector? codeSnippetSelector;
+  Function? focusCallback;
 
   /// A highlight language to parse the text with
   Language? get language => _language;
@@ -186,12 +187,14 @@ class CodeController extends TextEditingController {
 
     if (autoComplete?.isShowing ?? false) {
       if (event.isKeyPressed(LogicalKeyboardKey.arrowDown)) {
-        autoComplete!.current = (autoComplete!.current + 1) % autoComplete!.options.length;
+        autoComplete!.current =
+            (autoComplete!.current + 1) % autoComplete!.options.length;
         autoComplete!.panelSetState?.call(() {});
         return KeyEventResult.handled;
       }
       if (event.isKeyPressed(LogicalKeyboardKey.arrowUp)) {
-        autoComplete!.current = (autoComplete!.current - 1) % autoComplete!.options.length;
+        autoComplete!.current =
+            (autoComplete!.current - 1) % autoComplete!.options.length;
         autoComplete!.panelSetState?.call(() {});
         return KeyEventResult.handled;
       }
@@ -218,6 +221,23 @@ class CodeController extends TextEditingController {
     return sel.start;
   }
 
+  // line starts with 1, column with 0
+  void goTo(int line, int column) {
+    final lineStartRegex = RegExp(r'^.*', multiLine: true);
+    final lineMatches = [...lineStartRegex.allMatches(text)];
+    final lineNum = line - 1;
+    if (lineNum >= lineMatches.length) {
+      return;
+    }
+    final match = lineMatches[lineNum];
+    final lineOffset = match.start;
+    final selectionStart = lineOffset + column;
+    if (selectionStart < text.length) {
+      focusCallback?.call();
+      selection = TextSelection.collapsed(offset: selectionStart);
+    }
+  }
+
   void indentSelection() {
     final tabSpaces = params.tabSpaces;
     final tab = ' ' * tabSpaces;
@@ -238,7 +258,9 @@ class CodeController extends TextEditingController {
         .toList();
     final indented = lines.join('\n');
     text = text.replaceRange(start, end, indented);
-    selection = TextSelection(baseOffset: selStart + tabSpaces, extentOffset: selEnd + (tabSpaces * lines.length));
+    selection = TextSelection(
+        baseOffset: selStart + tabSpaces,
+        extentOffset: selEnd + (tabSpaces * lines.length));
   }
 
   void unIndentSelection() {
@@ -261,9 +283,15 @@ class CodeController extends TextEditingController {
         modified = true;
         lines[i] = l.substring(tab.length);
         if (i == 0) {
-          newSelection = (start: max(0, newSelection.start - tabSpaces), end: newSelection.end - tabSpaces);
+          newSelection = (
+            start: max(0, newSelection.start - tabSpaces),
+            end: newSelection.end - tabSpaces
+          );
         } else {
-          newSelection = (start: newSelection.start, end: max(0, newSelection.end - tabSpaces));
+          newSelection = (
+            start: newSelection.start,
+            end: max(0, newSelection.end - tabSpaces)
+          );
         }
       }
     }
@@ -272,7 +300,8 @@ class CodeController extends TextEditingController {
     }
     final unIndented = lines.join('\n');
     text = text.replaceRange(start, end, unIndented);
-    selection = TextSelection(baseOffset: newSelection.start, extentOffset: newSelection.end);
+    selection = TextSelection(
+        baseOffset: newSelection.start, extentOffset: newSelection.end);
   }
 
   void commentSelection() {
@@ -297,8 +326,9 @@ class CodeController extends TextEditingController {
         .toList();
     final commented = lines.join('\n');
     text = text.replaceRange(start, end, commented);
-    selection =
-        TextSelection(baseOffset: selStart + comment.length, extentOffset: selEnd + (comment.length * lines.length));
+    selection = TextSelection(
+        baseOffset: selStart + comment.length,
+        extentOffset: selEnd + (comment.length * lines.length));
   }
 
   void commentMultiLanguageSelection(Language secondaryLang) {
@@ -319,11 +349,14 @@ class CodeController extends TextEditingController {
         )
         .toList();
     lines = addedChars.map((e) => e.$1).toList();
-    final addedCount = addedChars.map((e) => e.$2 + e.$3).reduce((value, element) => value + element);
+    final addedCount = addedChars
+        .map((e) => e.$2 + e.$3)
+        .reduce((value, element) => value + element);
     final commented = lines.join('\n');
     text = text.replaceRange(start, end, commented);
-    selection =
-        TextSelection(baseOffset: selStart + addedChars[0].$2, extentOffset: selEnd + (addedCount - addedChars[0].$3));
+    selection = TextSelection(
+        baseOffset: selStart + addedChars[0].$2,
+        extentOffset: selEnd + (addedCount - addedChars[0].$3));
   }
 
   (String, int, int) commentLine(String line, {Language? secondaryLang}) {
@@ -361,9 +394,15 @@ class CodeController extends TextEditingController {
         modified = true;
         lines[i] = l.replaceFirst(comment, '');
         if (i == 0) {
-          newSelection = (start: max(0, newSelection.start - comment.length), end: newSelection.end - comment.length);
+          newSelection = (
+            start: max(0, newSelection.start - comment.length),
+            end: newSelection.end - comment.length
+          );
         } else {
-          newSelection = (start: newSelection.start, end: max(0, newSelection.end - comment.length));
+          newSelection = (
+            start: newSelection.start,
+            end: max(0, newSelection.end - comment.length)
+          );
         }
       }
     }
@@ -372,7 +411,9 @@ class CodeController extends TextEditingController {
     }
     final unCommented = lines.join('\n');
     text = text.replaceRange(start, end, unCommented);
-    selection = TextSelection(baseOffset: newSelection.start, extentOffset: min(text.length, newSelection.end));
+    selection = TextSelection(
+        baseOffset: newSelection.start,
+        extentOffset: min(text.length, newSelection.end));
   }
 
   void unCommentMulitModeSelection(Language secondaryLang) {
@@ -399,17 +440,27 @@ class CodeController extends TextEditingController {
       if (isXml && RegExp('<!--(.*?)-->').hasMatch(l)) {
         lines[i] = l.replaceFirst(RegExp('<!--'), '').replaceAll('-->', '');
         if (i == 0) {
-          newSelection = (start: max(0, newSelection.start - 4), end: newSelection.end - 4);
+          newSelection = (
+            start: max(0, newSelection.start - 4),
+            end: newSelection.end - 4
+          );
         } else {
-          newSelection = (start: newSelection.start, end: max(0, newSelection.end - 7));
+          newSelection =
+              (start: newSelection.start, end: max(0, newSelection.end - 7));
         }
       } else if (l.startsWith(RegExp(r'\s*' + comment))) {
         modified = true;
         lines[i] = l.replaceFirst(comment, '');
         if (i == 0) {
-          newSelection = (start: max(0, newSelection.start - comment.length), end: newSelection.end - comment.length);
+          newSelection = (
+            start: max(0, newSelection.start - comment.length),
+            end: newSelection.end - comment.length
+          );
         } else {
-          newSelection = (start: newSelection.start, end: max(0, newSelection.end - comment.length));
+          newSelection = (
+            start: newSelection.start,
+            end: max(0, newSelection.end - comment.length)
+          );
         }
       }
     }
@@ -418,7 +469,9 @@ class CodeController extends TextEditingController {
     }
     final unCommented = lines.join('\n');
     text = text.replaceRange(start, end, unCommented);
-    selection = TextSelection(baseOffset: newSelection.start, extentOffset: min(text.length, newSelection.end));
+    selection = TextSelection(
+        baseOffset: newSelection.start,
+        extentOffset: min(text.length, newSelection.end));
   }
 
   int lineStart(int offset) {
@@ -456,7 +509,9 @@ class CodeController extends TextEditingController {
     lines[currentLine - 1] = lines[currentLine];
     lines[currentLine] = temp;
     text = lines.join('\n');
-    selection = TextSelection(baseOffset: selStart - temp.length - 1, extentOffset: selEnd - temp.length - 1);
+    selection = TextSelection(
+        baseOffset: selStart - temp.length - 1,
+        extentOffset: selEnd - temp.length - 1);
   }
 
   void moveLineDown() {
@@ -465,14 +520,16 @@ class CodeController extends TextEditingController {
     final substring = text.substring(0, selection.baseOffset);
     final currentLine = substring.split('\n').length - 1;
     final lines = text.split('\n');
-    if (currentLine == lines.length -1) {
+    if (currentLine == lines.length - 1) {
       return;
     }
     final temp = lines[currentLine + 1];
     lines[currentLine + 1] = lines[currentLine];
     lines[currentLine] = temp;
     text = lines.join('\n');
-    selection = TextSelection(baseOffset: selStart + temp.length + 1, extentOffset: selEnd + temp.length + 1);
+    selection = TextSelection(
+        baseOffset: selStart + temp.length + 1,
+        extentOffset: selEnd + temp.length + 1);
   }
 
   @override
@@ -511,7 +568,11 @@ class CodeController extends TextEditingController {
         }
 
         int idx;
-        for (idx = 1; idx < m.groupCount && idx <= _styleList.length && m.group(idx) == null; idx++) {}
+        for (idx = 1;
+            idx < m.groupCount &&
+                idx <= _styleList.length &&
+                m.group(idx) == null;
+            idx++) {}
 
         children.add(TextSpan(
           text: m[0],

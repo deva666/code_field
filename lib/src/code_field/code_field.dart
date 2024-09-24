@@ -146,8 +146,8 @@ class _CodeFieldState extends State<CodeField> {
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode!.onKey = _onKey;
     _focusNode!.attach(context, onKey: _onKey);
-    errorLinesPainer =
-        _ErrorLinesPainter(customPaintKey, widget.textStyle ?? const TextStyle(), Listenable.merge([_codeScroll]));
+    errorLinesPainer = _ErrorLinesPainter(customPaintKey,
+        widget.textStyle ?? const TextStyle(), Listenable.merge([_codeScroll]));
     _errorsSubscription = widget.errorStream?.listen((event) {
       errorLinesPainer.errors = event;
       setState(() {});
@@ -156,10 +156,12 @@ class _CodeFieldState extends State<CodeField> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       createAutoComplate();
       createCodeSnippetSelector();
-      _eventDispatcher = CodeFieldEventDispatcher.of(context)?..addListener(onCodeFieldEvent);
+      _eventDispatcher = CodeFieldEventDispatcher.of(context)
+        ?..addListener(onCodeFieldEvent);
     });
 
     _onTextChanged();
+    widget.controller.focusCallback = () => _focusNode?.requestFocus();
   }
 
   void onCodeFieldEvent(CodeFieldEvent e) {
@@ -169,13 +171,15 @@ class _CodeFieldState extends State<CodeField> {
 
   void createAutoComplate() {
     widget.controller.autoComplete = widget.autoComplete;
-    widget.autoComplete?.show(context, widget, _focusNode!, hideSnippetSelector);
+    widget.autoComplete
+        ?.show(context, widget, _focusNode!, hideSnippetSelector);
     _codeScroll?.addListener(hideAllPopups);
   }
 
   void createCodeSnippetSelector() {
     widget.controller.codeSnippetSelector = widget.codeSnippetSelector;
-    widget.codeSnippetSelector?.show(context, widget, _focusNode!, hideAutoComplete);
+    widget.codeSnippetSelector
+        ?.show(context, widget, _focusNode!, hideAutoComplete);
   }
 
   KeyEventResult _onKey(FocusNode node, RawKeyEvent event) {
@@ -195,6 +199,7 @@ class _CodeFieldState extends State<CodeField> {
     _keyboardVisibilitySubscription?.cancel();
     _errorsSubscription?.cancel();
     _eventDispatcher?.removeListener(onCodeFieldEvent);
+    widget.controller?.focusCallback = null;
     widget.autoComplete?.remove();
     super.dispose();
   }
@@ -269,7 +274,8 @@ class _CodeFieldState extends State<CodeField> {
       scrollDirection: Axis.horizontal,
 
       /// Prevents the horizontal scroll if horizontalScroll is false
-      physics: widget.horizontalScroll ? null : const NeverScrollableScrollPhysics(),
+      physics:
+          widget.horizontalScroll ? null : const NeverScrollableScrollPhysics(),
       child: intrinsic,
     );
   }
@@ -299,7 +305,8 @@ class _CodeFieldState extends State<CodeField> {
     final defaultText = Colors.grey.shade200;
 
     final styles = CodeTheme.of(context)?.styles;
-    Color? backgroundCol = widget.background ?? styles?[rootKey]?.backgroundColor ?? defaultBg;
+    Color? backgroundCol =
+        widget.background ?? styles?[rootKey]?.backgroundColor ?? defaultBg;
 
     if (widget.decoration != null) {
       backgroundCol = null;
@@ -311,8 +318,10 @@ class _CodeFieldState extends State<CodeField> {
       fontSize: textStyle.fontSize ?? 16.0,
     );
 
-    TextStyle numberTextStyle = widget.lineNumberStyle.textStyle ?? const TextStyle();
-    final numberColor = (styles?[rootKey]?.color ?? defaultText).withOpacity(0.7);
+    TextStyle numberTextStyle =
+        widget.lineNumberStyle.textStyle ?? const TextStyle();
+    final numberColor =
+        (styles?[rootKey]?.color ?? defaultText).withOpacity(0.7);
 
     // Copy important attributes
     numberTextStyle = numberTextStyle.copyWith(
@@ -321,7 +330,8 @@ class _CodeFieldState extends State<CodeField> {
       fontFamily: textStyle.fontFamily,
     );
 
-    final cursorColor = widget.cursorColor ?? styles?[rootKey]?.color ?? defaultText;
+    final cursorColor =
+        widget.cursorColor ?? styles?[rootKey]?.color ?? defaultText;
 
     TextField? lineNumberCol;
     Container? numberCol;
@@ -408,7 +418,9 @@ class _CodeFieldState extends State<CodeField> {
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           // Control horizontal scrolling
-          return widget.wrap ? codeField : _wrapInScrollView(codeField, textStyle, constraints.maxWidth);
+          return widget.wrap
+              ? codeField
+              : _wrapInScrollView(codeField, textStyle, constraints.maxWidth);
         },
       ),
     );
@@ -429,7 +441,8 @@ class _CodeFieldState extends State<CodeField> {
 }
 
 class _ErrorLinesPainter extends CustomPainter {
-  _ErrorLinesPainter(this.customPaintKey, this.textStyle, Listenable listenable) : super(repaint: listenable);
+  _ErrorLinesPainter(this.customPaintKey, this.textStyle, Listenable listenable)
+      : super(repaint: listenable);
   GlobalKey customPaintKey;
   RenderEditable? re;
 
@@ -451,10 +464,12 @@ class _ErrorLinesPainter extends CustomPainter {
         final lineStartOffset = lineStart(e.lineNumber);
         final lineEndOffset = lineEnd(lineStartOffset);
         // if column is on the end of the line, highlight the whole line
-        int selectionStart =
-            e.column > (lineEndOffset - lineStartOffset) ? lineStartOffset : lineStartOffset + e.column - 1;
-        final boxes = re.getBoxesForSelection(TextSelection(baseOffset: selectionStart, extentOffset: lineEndOffset));
-        if (boxes.isNotEmpty) {          
+        int selectionStart = e.column > (lineEndOffset - lineStartOffset)
+            ? lineStartOffset
+            : lineStartOffset + e.column - 1;
+        final boxes = re.getBoxesForSelection(TextSelection(
+            baseOffset: selectionStart, extentOffset: lineEndOffset));
+        if (boxes.isNotEmpty) {
           final firstBox = boxes.first.toRect();
           final lastBox = boxes.last.toRect();
           canvas.drawLine(
@@ -466,17 +481,20 @@ class _ErrorLinesPainter extends CustomPainter {
                 ..filterQuality = FilterQuality.low
                 ..strokeCap = StrokeCap.round
                 ..color = Colors.red.shade300);
-          final paragraphBuilder = ui.ParagraphBuilder(
-            ui.ParagraphStyle(textAlign: TextAlign.left, fontSize: 14,)
-          )
+          final paragraphBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(
+            textAlign: TextAlign.left,
+            fontSize: 14,
+          ))
             ..pushStyle(ui.TextStyle(
-                color: Theme.of(customPaintKey.currentContext!).brightness == Brightness.dark
+                color: Theme.of(customPaintKey.currentContext!).brightness ==
+                        Brightness.dark
                     ? Colors.white24
                     : Colors.black26))
             ..addText(e.text);
           final paragraph = paragraphBuilder.build()
             ..layout(const ui.ParagraphConstraints(width: 1000));
-          canvas.drawParagraph(paragraph, Offset(lastBox.right + offset.dx + 6, firstBox.top + offset.dy));
+          canvas.drawParagraph(paragraph,
+              Offset(lastBox.right + offset.dx + 6, firstBox.top + offset.dy));
         }
       }
     }
