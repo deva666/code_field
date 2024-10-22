@@ -130,7 +130,7 @@ class CodeAutoComplete<T> {
       required this.onOffsetUpdated,
       this.completionItemBuilder = defaultCompletionItemBuilder,
       this.initialOffset,
-      this.constraints = const BoxConstraints(maxHeight: 300, maxWidth: 380),
+      this.constraints = const BoxConstraints(maxHeight: 200, maxWidth: 280),
       this.backgroundColor,
       this.optionValue,
       this.completionsStream});
@@ -260,7 +260,7 @@ class CodeAutoComplete<T> {
         widget.controller.insertStr(completion.complete);
       }
     } else {
-      widget.controller.insertStr(completion.complete);
+      write(completion.name);
     }
     widget.onChanged?.call(widget.controller.text);
     hide();

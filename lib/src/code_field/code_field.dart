@@ -150,7 +150,7 @@ class _CodeFieldState extends State<CodeField> {
         widget.textStyle ?? const TextStyle(), Listenable.merge([_codeScroll]));
     _errorsSubscription = widget.errorStream?.listen((event) {
       errorLinesPainer.errors = event;
-      setState(() {});
+      _onTextChanged();
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -199,7 +199,7 @@ class _CodeFieldState extends State<CodeField> {
     _keyboardVisibilitySubscription?.cancel();
     _errorsSubscription?.cancel();
     _eventDispatcher?.removeListener(onCodeFieldEvent);
-    widget.controller?.focusCallback = null;
+    widget.controller.focusCallback = null;
     widget.autoComplete?.remove();
     super.dispose();
   }
@@ -222,15 +222,22 @@ class _CodeFieldState extends State<CodeField> {
     // Find longest line
     longestLine = '';
     final lineNumsWithlongestError = <int, String>{};
+    final longestError = errorLinesPainer.errors.isEmpty
+        ? ''
+        : errorLinesPainer.errors.length == 1
+            ? errorLinesPainer.errors[0].text
+            : errorLinesPainer.errors
+                .map((e) => e.text)
+                .reduce((l, r) => l.length >= r.length ? l : r);
     for (final e in errorLinesPainer.errors) {
       lineNumsWithlongestError[e.lineNumber - 1] = e.text;
     }
     final lines = widget.controller.text.split('\n');
     for (var i = 0; i < lines.length; i++) {
-      var line = lines[i];
-      if (lineNumsWithlongestError.containsKey(i)) {
-        line += lineNumsWithlongestError[i]!;
-      }
+      var line = '${lines[i]}$longestError    ';
+      //if (lineNumsWithlongestError.containsKey(i)) {
+      //line += '${lineNumsWithlongestError[i]!}          ';
+      //}
       if (line.length > longestLine.length) {
         longestLine = line;
       }
@@ -460,15 +467,36 @@ class _ErrorLinesPainter extends CustomPainter {
     if (re case RenderEditable re) {
       final ancestor = customPaintKey.currentContext!.findRenderObject();
       final offset = re.localToGlobal(Offset.zero, ancestor: ancestor);
+      final lineEndPositions = <int>{};
       for (final e in errors) {
-        final lineStartOffset = lineStart(e.lineNumber);
-        final lineEndOffset = lineEnd(lineStartOffset);
-        // if column is on the end of the line, highlight the whole line
-        int selectionStart = e.column > (lineEndOffset - lineStartOffset)
-            ? lineStartOffset
-            : lineStartOffset + e.column - 1;
+        int selectionStart;
+        int selectionEnd;
+        int lineStartOffset;
+        int lineEndOffset;
+        if (e.baseOffset != null && e.offsetLength != null) {
+          lineStartOffset = lineStart(e.baseOffset!);
+          selectionStart = max(0, e.baseOffset!);
+          lineEndOffset = lineEnd(selectionStart);
+          selectionEnd =  lineEndOffset;
+          if (selectionStart == selectionEnd ) {
+            selectionStart--; // if selection empty then nothing will be highlighted
+          }
+        } else {
+           lineStartOffset = lineStart(e.lineNumber);
+           lineEndOffset = lineEnd(lineStartOffset);
+          // if column is on the end of the line, highlight the whole line
+          selectionStart = e.column > (lineEndOffset - lineStartOffset)
+              ? lineStartOffset
+              : lineStartOffset + e.column - 1;
+          selectionEnd = lineEndOffset;
+        }
+        if (lineEndPositions.contains(lineEndOffset)) {
+          continue;
+        } else {
+          lineEndPositions.add(lineEndOffset);
+        }
         final boxes = re.getBoxesForSelection(TextSelection(
-            baseOffset: selectionStart, extentOffset: lineEndOffset));
+            baseOffset: selectionStart, extentOffset: selectionEnd));
         if (boxes.isNotEmpty) {
           final firstBox = boxes.first.toRect();
           final lastBox = boxes.last.toRect();
@@ -520,7 +548,8 @@ class _ErrorLinesPainter extends CustomPainter {
   }
 
   int lineEnd(int offset) {
-    final match = RegExp(r'\n').firstMatch(code.substring(offset));
+    final match =
+        RegExp(r'\n').firstMatch(code.substring(min(code.length - 1, offset)));
     if (match == null) {
       return code.length;
     } else {
