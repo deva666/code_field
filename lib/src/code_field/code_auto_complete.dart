@@ -304,14 +304,15 @@ class CodeAutoComplete<T> {
     if (inital != null) {
       return inital;
     }
-    final offset = cursorOffset(context, widget, focusNode);
-    final pinToBottom = _pinToBottom(offset, context);
-    if (pinToBottom) {
-      return Offset(offset.dx,
-          EdgeInsets.fromViewPadding(View.of(context).viewInsets, View.of(context).devicePixelRatio).bottom + 64);
-    } else {
-      return offset;
-    }
+    return const Offset(100,200);
+    //final offset = cursorOffset(context, widget, focusNode);
+    //final pinToBottom = _pinToBottom(offset, context);
+    //if (pinToBottom) {
+      //return Offset(offset.dx,
+          //EdgeInsets.fromViewPadding(View.of(context).viewInsets, View.of(context).devicePixelRatio).bottom + 64);
+    //} else {
+      //return offset;
+    //}
   }
 
   /// get the panel offset through the cursor offset.
