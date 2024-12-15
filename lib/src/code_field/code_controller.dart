@@ -30,7 +30,7 @@ class CodeController extends TextEditingController {
   Language? _language;
   CodeAutoComplete? autoComplete;
   CodeSnippetSelector? codeSnippetSelector;
-  Function? focusCallback;
+  final List<Function> focusCallback = [];
 
   /// A highlight language to parse the text with
   Language? get language => _language;
@@ -222,7 +222,7 @@ class CodeController extends TextEditingController {
   }
 
   // line starts with 1, column with 0
-  void goTo(int line, int column) {
+  void goTo(int line, int column) async {
     final lineStartRegex = RegExp(r'^.*', multiLine: true);
     final lineMatches = [...lineStartRegex.allMatches(text)];
     final lineNum = line - 1;
@@ -233,8 +233,10 @@ class CodeController extends TextEditingController {
     final lineOffset = match.start;
     final selectionStart = lineOffset + column;
     if (selectionStart < text.length) {
-      focusCallback?.call();
       selection = TextSelection.collapsed(offset: selectionStart);
+      for (Function callback in focusCallback) {
+        callback.call();
+      }
     }
   }
 

@@ -161,7 +161,11 @@ class _CodeFieldState extends State<CodeField> {
     });
 
     _onTextChanged();
-    widget.controller.focusCallback = () => _focusNode?.requestFocus();
+    widget.controller.focusCallback.add(focusCallback);
+  }
+
+  void focusCallback() {
+    _focusNode?.requestFocus();
   }
 
   void onCodeFieldEvent(CodeFieldEvent e) {
@@ -199,7 +203,7 @@ class _CodeFieldState extends State<CodeField> {
     _keyboardVisibilitySubscription?.cancel();
     _errorsSubscription?.cancel();
     _eventDispatcher?.removeListener(onCodeFieldEvent);
-    widget.controller.focusCallback = null;
+    widget.controller.focusCallback.remove(focusCallback);
     widget.autoComplete?.remove();
     super.dispose();
   }
@@ -474,22 +478,26 @@ class _ErrorLinesPainter extends CustomPainter {
         int lineStartOffset;
         int lineEndOffset;
         if (e.baseOffset != null && e.offsetLength != null) {
-          lineStartOffset = lineStart(e.baseOffset!);
-          selectionStart = max(0, e.baseOffset!);
-          lineEndOffset = lineEnd(selectionStart);
-          selectionEnd =  lineEndOffset;
-          if (selectionStart == selectionEnd ) {
-            selectionStart--; // if selection empty then nothing will be highlighted
-          }
+          lineStartOffset = lineStart(e.lineNumber);
+          lineEndOffset = lineEnd(lineStartOffset);
+          selectionStart = e.baseOffset!;
+          selectionEnd = lineEndOffset;
+          //lineStartOffset = 0; // does not matter
+          //selectionStart = max(0, e.baseOffset!);
+          //lineEndOffset = lineEnd(selectionStart);
+          //selectionEnd = lineEndOffset;
+          //if (selectionStart == selectionEnd) {
+            //selectionStart--; // if selection empty then nothing will be highlighted
+          //}
         } else {
-           lineStartOffset = lineStart(e.lineNumber);
-           lineEndOffset = lineEnd(lineStartOffset);
+          lineStartOffset = lineStart(e.lineNumber);
+          lineEndOffset = lineEnd(lineStartOffset);
           // if column is on the end of the line, highlight the whole line
           selectionStart = e.column > (lineEndOffset - lineStartOffset)
               ? lineStartOffset
               : lineStartOffset + e.column - 1;
           selectionEnd = lineEndOffset;
-        }
+        } 
         if (lineEndPositions.contains(lineEndOffset)) {
           continue;
         } else {
