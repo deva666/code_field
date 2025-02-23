@@ -12,11 +12,13 @@ import 'package:highlighting/languages/dockerfile.dart';
 import 'package:highlighting/languages/elixir.dart';
 import 'package:highlighting/languages/erlang.dart';
 import 'package:highlighting/languages/fortran.dart';
+import 'package:highlighting/languages/fsharp.dart';
 import 'package:highlighting/languages/go.dart';
 import 'package:highlighting/languages/groovy.dart';
 import 'package:highlighting/languages/haskell.dart';
 import 'package:highlighting/languages/java.dart';
 import 'package:highlighting/languages/javascript.dart';
+import 'package:highlighting/languages/kotlin.dart';
 import 'package:highlighting/languages/lisp.dart';
 import 'package:highlighting/languages/lua.dart';
 import 'package:highlighting/languages/objectivec.dart';
@@ -70,7 +72,7 @@ final _kLangToModeMap = <Language, String>{
   cpp: '//',
   cpp: '//',
   dockerfile: '#',
-  // 78: kotlin,
+  kotlin: '//',
   objectivec: '//',
   r: '#',
   scala: '//',
@@ -78,7 +80,7 @@ final _kLangToModeMap = <Language, String>{
   swift: '//',
   perl: '#',
   clojure: ';',
-  // 87: fsharp,
+  fsharp: '//',
   groovy: '//',
 };
 
