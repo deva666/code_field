@@ -186,18 +186,18 @@ class CodeController extends TextEditingController {
     }
 
     if (autoComplete?.isShowing ?? false) {
-      if (event.isKeyPressed(LogicalKeyboardKey.arrowDown)) {
-        autoComplete!.current =
-            (autoComplete!.current + 1) % autoComplete!.options.length;
-        autoComplete!.panelSetState?.call(() {});
-        return KeyEventResult.handled;
-      }
-      if (event.isKeyPressed(LogicalKeyboardKey.arrowUp)) {
-        autoComplete!.current =
-            (autoComplete!.current - 1) % autoComplete!.options.length;
-        autoComplete!.panelSetState?.call(() {});
-        return KeyEventResult.handled;
-      }
+      //if (event.isKeyPressed(LogicalKeyboardKey.arrowDown)) {
+        //autoComplete!.current =
+            //(autoComplete!.current + 1) % autoComplete!.options.length;
+        //autoComplete!.panelSetState?.call(() {});
+        //return KeyEventResult.handled;
+      //}
+      //if (event.isKeyPressed(LogicalKeyboardKey.arrowUp)) {
+        //autoComplete!.current =
+            //(autoComplete!.current - 1) % autoComplete!.options.length;
+        //autoComplete!.panelSetState?.call(() {});
+        //return KeyEventResult.handled;
+      //}
       // if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
       //   autoComplete!.writeCurrent();
       //   return KeyEventResult.handled;

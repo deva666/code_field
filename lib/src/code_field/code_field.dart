@@ -482,13 +482,6 @@ class _ErrorLinesPainter extends CustomPainter {
           lineEndOffset = lineEnd(lineStartOffset);
           selectionStart = e.baseOffset!;
           selectionEnd = lineEndOffset;
-          //lineStartOffset = 0; // does not matter
-          //selectionStart = max(0, e.baseOffset!);
-          //lineEndOffset = lineEnd(selectionStart);
-          //selectionEnd = lineEndOffset;
-          //if (selectionStart == selectionEnd) {
-            //selectionStart--; // if selection empty then nothing will be highlighted
-          //}
         } else {
           lineStartOffset = lineStart(e.lineNumber);
           lineEndOffset = lineEnd(lineStartOffset);
